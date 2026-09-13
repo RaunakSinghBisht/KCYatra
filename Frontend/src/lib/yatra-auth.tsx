@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-export type YatraUser = { phone: string; name: string };
+export type YatraUser = { user_id: number; phone: string; name: string };
 
 const STORAGE_KEY = "yatra-book-user";
 

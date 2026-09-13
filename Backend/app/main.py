@@ -1,20 +1,23 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.db.base import Base
 from app.db.session import engine
 
-# Import all models here so SQLAlchemy registers them with Base.metadata
-from app.models.traveler import Traveler  # noqa: F401
+# Import all models so SQLAlchemy registers them with Base.metadata
+from app.models.user import User  # noqa: F401
+from app.models.passenger import Passenger  # noqa: F401
 from app.models.yatra import Yatra  # noqa: F401
 from app.models.registration import Registration  # noqa: F401
 
-from app.routers import traveler as traveler_router
+from app.routers import user as user_router
+from app.routers import passenger as passenger_router
 from app.routers import yatra as yatra_router
 from app.routers import registration as registration_router
 
- 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: create all tables that don't exist yet
@@ -32,7 +35,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# ── CORS ──────────────────────────────────────────────────
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:8080",
+        "http://localhost:8081",
+        "http://localhost:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # ── Routers ──────────────────────────────────────────────
-app.include_router(traveler_router.router)
+app.include_router(user_router.router)
+app.include_router(passenger_router.router)
 app.include_router(yatra_router.router)
 app.include_router(registration_router.router)

@@ -48,14 +48,22 @@ function AuthPage() {
     toast.success(`OTP sent to +91 ${phone}`, { description: "Demo OTP: 123456" });
   };
 
-  const verify = (code: string) => {
+  const verify = async (code: string) => {
     if (code.length !== 6) return;
     if (code !== "123456") {
       toast.error("Incorrect OTP. Demo code is 123456");
       setOtp("");
       return;
     }
-    signIn({ phone, name: "Traveller" });
+
+    // TODO: replace this block with a real API call to POST /otp/verify
+    // The backend should return { user_id: number, full_name: string, phone: string }
+    // Example:
+    //   const res = await fetch("/api/otp/verify", { method: "POST", body: JSON.stringify({ phone, otp: code }) });
+    //   const data = await res.json();
+    //   signIn({ user_id: data.user_id, phone: data.phone, name: data.full_name });
+
+    signIn({ user_id: 1, phone, name: "Avishkar Jaiswal" }); // ← swap with real user_id from API response later
     toast.success("Welcome to Krishna Conscious Yatra!");
     navigate({ to: "/select-yatra" });
   };

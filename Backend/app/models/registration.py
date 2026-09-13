@@ -11,11 +11,12 @@ class Registration(Base):
     __tablename__ = "registrations"
 
     __table_args__ = (
-        UniqueConstraint("traveler_id", "yatra_id", name="uq_traveler_yatra"),
+        UniqueConstraint("passenger_id", "yatra_id", name="uq_passenger_yatra"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    traveler_id: Mapped[int] = mapped_column(ForeignKey("travelers.id"), nullable=False)
+    passenger_id: Mapped[int] = mapped_column(ForeignKey("passengers.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     yatra_id: Mapped[int] = mapped_column(ForeignKey("yatras.id"), nullable=False)
     registration_date: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -25,6 +26,7 @@ class Registration(Base):
     amount_paid: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0, nullable=False)
     seat_number: Mapped[str | None] = mapped_column(String(20), nullable=True)
     special_requirements: Mapped[str | None] = mapped_column(Text, nullable=True)
+    transaction_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -35,6 +37,7 @@ class Registration(Base):
         nullable=False,
     )
 
-    # Relationships (lazy="selectin" avoids extra queries in async context)
-    traveler: Mapped["Traveler"] = relationship("Traveler", lazy="selectin")  # type: ignore[name-defined]
+    # Relationships
+    passenger: Mapped["Passenger"] = relationship("Passenger", lazy="selectin")  # type: ignore[name-defined]
+    user: Mapped["User"] = relationship("User", lazy="selectin")  # type: ignore[name-defined]
     yatra: Mapped["Yatra"] = relationship("Yatra", lazy="selectin")  # type: ignore[name-defined]

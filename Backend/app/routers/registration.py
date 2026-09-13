@@ -3,11 +3,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.registration import (
     DuplicateRegistrationError,
-    TravelerNotFoundError,
+    PassengerNotFoundError,
+    UserNotFoundError,
     YatraNotActiveError,
     YatraNotFoundError,
     create_registration,
-    get_registrations_by_traveler,
+    get_registrations_by_passenger,
+    get_registrations_by_user,
     get_registrations_by_yatra,
 )
 from app.dependencies.db import get_db
@@ -20,16 +22,18 @@ router = APIRouter(prefix="/registrations", tags=["Registrations"])
     "/",
     response_model=RegistrationResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Register a traveler for a Yatra",
+    summary="Register a passenger for a Yatra",
 )
-async def register_traveler_for_yatra(
+async def register_passenger_for_yatra(
     payload: RegistrationCreate,
     db: AsyncSession = Depends(get_db),
 ) -> RegistrationResponse:
     try:
         registration = await create_registration(db, payload)
         return registration
-    except TravelerNotFoundError as exc:
+    except PassengerNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=exc.message) from exc
+    except UserNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=exc.message) from exc
     except YatraNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=exc.message) from exc
@@ -57,12 +61,24 @@ async def list_registrations_by_yatra(
 
 
 @router.get(
-    "/traveler/{traveler_id}",
+    "/user/{user_id}",
     response_model=list[RegistrationResponse],
-    summary="List all Yatra registrations for a specific traveler",
+    summary="List all Yatra registrations for a specific user (booking account)",
 )
-async def list_registrations_by_traveler(
-    traveler_id: int,
+async def list_registrations_by_user(
+    user_id: int,
     db: AsyncSession = Depends(get_db),
 ) -> list[RegistrationResponse]:
-    return await get_registrations_by_traveler(db, traveler_id)
+    return await get_registrations_by_user(db, user_id)
+
+
+@router.get(
+    "/passenger/{passenger_id}",
+    response_model=list[RegistrationResponse],
+    summary="List all Yatra registrations for a specific passenger",
+)
+async def list_registrations_by_passenger(
+    passenger_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> list[RegistrationResponse]:
+    return await get_registrations_by_passenger(db, passenger_id)
