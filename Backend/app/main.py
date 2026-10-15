@@ -16,6 +16,8 @@ from app.routers import user as user_router
 from app.routers import passenger as passenger_router
 from app.routers import yatra as yatra_router
 from app.routers import registration as registration_router
+from app.routers import otp as otp_router
+from app.routers import payment as payment_router
 
 
 @asynccontextmanager
@@ -53,3 +55,5 @@ app.include_router(user_router.router)
 app.include_router(passenger_router.router)
 app.include_router(yatra_router.router)
 app.include_router(registration_router.router)
+app.include_router(otp_router.router)
+app.include_router(payment_router.router)

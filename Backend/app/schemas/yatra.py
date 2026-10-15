@@ -23,8 +23,23 @@ class YatraCreate(BaseModel):
     travel_packages: list[TravelPackage] | None = None
     message_for_passengers: str | None = None
     whatsapp_group_link: str | None = None
-    total_seats: int | None = None
-    seats_available: int | None = None
+    status: str = "upcoming"
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, v: str) -> str:
+        v = v.strip()
+        if not (5 <= len(v) <= 50):
+            raise ValueError("title must be between 5 and 50 characters.")
+        return v
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str) -> str:
+        allowed = {"upcoming", "active", "closed"}
+        if v.lower() not in allowed:
+            raise ValueError(f"status must be one of: {', '.join(sorted(allowed))}")
+        return v.lower()
 
     @field_validator("end_date")
     @classmethod
@@ -50,6 +65,4 @@ class YatraResponse(BaseModel):
     message_for_passengers: str | None
     whatsapp_group_link: str | None
     status: str
-    total_seats: int | None
-    seats_available: int | None
     created_at: datetime

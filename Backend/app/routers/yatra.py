@@ -6,7 +6,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.crud.yatra import create_yatra
+from app.crud.yatra import create_yatra, get_all_yatras, get_yatra_by_id
 from app.dependencies.db import get_db
 from app.schemas.yatra import YatraCreate, YatraResponse
 
@@ -34,8 +34,6 @@ async def create_yatra_route(
     travel_packages: str | None = Form(None),     # JSON string: [{title, price}, ...]
     message_for_passengers: str | None = Form(None),
     whatsapp_group_link: str | None = Form(None),
-    total_seats: int | None = Form(None),
-    seats_available: int | None = Form(None),
     image: UploadFile | None = File(None),
     # ── Dependencies ─────────────────────────────────────────
     db: AsyncSession = Depends(get_db),
@@ -80,8 +78,6 @@ async def create_yatra_route(
         travel_packages=parsed_travel,
         message_for_passengers=message_for_passengers,
         whatsapp_group_link=whatsapp_group_link,
-        total_seats=total_seats,
-        seats_available=seats_available,
     )
 
     try:
@@ -90,5 +86,34 @@ async def create_yatra_route(
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred.",
+            detail=str(exc),
         ) from exc
+
+
+@router.get(
+    "/",
+    response_model=list[YatraResponse],
+    summary="List all Yatras",
+)
+async def list_yatras(
+    db: AsyncSession = Depends(get_db),
+) -> list[YatraResponse]:
+    return await get_all_yatras(db)
+
+
+@router.get(
+    "/{yatra_id}",
+    response_model=YatraResponse,
+    summary="Get a single Yatra by ID",
+)
+async def get_yatra(
+    yatra_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> YatraResponse:
+    yatra = await get_yatra_by_id(db, yatra_id)
+    if not yatra:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Yatra with id={yatra_id} not found.",
+        )
+    return yatra

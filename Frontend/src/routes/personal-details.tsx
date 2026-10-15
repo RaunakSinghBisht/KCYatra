@@ -14,6 +14,14 @@ import {
   MessageCircle,
   Loader2,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { DashboardShell } from "@/components/DashboardShell";
 import { useYatraAuth } from "@/lib/yatra-auth";
 import { AddPassengerDialog, type Passenger } from "@/components/AddPassengerDialog";
@@ -37,7 +45,7 @@ function PersonalDetails() {
   const [passengers, setPassengers] = useState<Passenger[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<number | null>(null);
-
+  const [deleteDialogData, setDeleteDialogData] = useState<{ id: number; name: string; hasRegistrations: boolean } | null>(null);
   // ── Fetch passengers on mount ──────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
@@ -74,11 +82,24 @@ function PersonalDetails() {
   }
 
   // ── Delete ─────────────────────────────────────────────────────────────────
-  async function handleDelete(id: number, name: string) {
-    const confirmed = window.confirm(`Remove "${name}" from your saved passengers?`);
-    if (!confirmed) return;
-
+  async function handleDeleteRequest(id: number, name: string) {
     setDeletingId(id);
+    try {
+      const res = await fetch(`${BASE_URL}/passengers/${id}/has-registrations`);
+      if (!res.ok) throw new Error("Could not check registrations");
+      const data = await res.json();
+      setDeleteDialogData({ id, name, hasRegistrations: data.has_registrations });
+    } catch (err) {
+      toast.error("Error: " + (err instanceof Error ? err.message : "unknown"));
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteDialogData) return;
+    const { id, name } = deleteDialogData;
+    setDeletingId(id); // Use the same loader id for the button inside dialog
     try {
       const res = await fetch(`${BASE_URL}/passengers/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`Server error (${res.status})`);
@@ -88,6 +109,7 @@ function PersonalDetails() {
       toast.error("Could not delete — " + (err instanceof Error ? err.message : "unknown error"));
     } finally {
       setDeletingId(null);
+      setDeleteDialogData(null);
     }
   }
 
@@ -184,7 +206,7 @@ function PersonalDetails() {
                         aria-label={`Remove ${p.full_name}`}
                         className="text-destructive"
                         disabled={deletingId === p.id}
-                        onClick={() => handleDelete(p.id, p.full_name)}
+                        onClick={() => handleDeleteRequest(p.id, p.full_name)}
                       >
                         {deletingId === p.id ? (
                           <Loader2 className="size-4 animate-spin" />
@@ -234,6 +256,25 @@ function PersonalDetails() {
           <Button variant="outline" className="mt-6 w-full font-bold sm:w-auto" onClick={signOut}>
             <LogOut className="size-4" /> Logout
           </Button>
+
+          <Dialog open={!!deleteDialogData} onOpenChange={(open) => !open && setDeleteDialogData(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Delete Passenger</DialogTitle>
+                <DialogDescription>
+                  {deleteDialogData?.hasRegistrations
+                    ? "Passenger Already Registered in a Yatra."
+                    : `Are you sure you want to remove "${deleteDialogData?.name}" from your saved passengers?`}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDeleteDialogData(null)}>Cancel</Button>
+                <Button variant="destructive" onClick={confirmDelete} disabled={deletingId !== null}>
+                  {deletingId !== null ? <Loader2 className="size-4 animate-spin" /> : "Delete"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </DashboardShell>

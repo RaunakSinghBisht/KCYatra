@@ -1,7 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-
-from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, Numeric, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -18,14 +17,11 @@ class Registration(Base):
     passenger_id: Mapped[int] = mapped_column(ForeignKey("passengers.id"), nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     yatra_id: Mapped[int] = mapped_column(ForeignKey("yatras.id"), nullable=False)
-    registration_date: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
-    status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
-    payment_status: Mapped[str] = mapped_column(String(20), default="unpaid", nullable=False)
+    hotel_package: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    travel_package: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    payment_status: Mapped[str] = mapped_column(String(20), default="interested", nullable=False)
     amount_paid: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0, nullable=False)
-    seat_number: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    special_requirements: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payment_method: Mapped[str | None] = mapped_column(String(20), nullable=True)  # 'cash' | 'online'
     transaction_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

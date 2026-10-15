@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { ArrowLeft, Phone, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Loader2, Phone, ShieldCheck } from "lucide-react";
 import { useYatraAuth } from "@/lib/yatra-auth";
+import { BASE_URL } from "@/lib/api";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -27,6 +28,11 @@ function AuthPage() {
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [seconds, setSeconds] = useState(0);
+  const [sending, setSending] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+
+  // bypass hint received from backend on /otp/send
+  const [bypassActive, setBypassActive] = useState(false);
 
   useEffect(() => {
     if (user) navigate({ to: "/select-yatra" });
@@ -38,34 +44,86 @@ function AuthPage() {
     return () => clearTimeout(t);
   }, [seconds]);
 
-  const sendOtp = () => {
+  // ── Step 1: Send OTP ───────────────────────────────────────────────────────
+
+  const sendOtp = async () => {
     if (!/^\d{10}$/.test(phone)) {
       toast.error("Enter a valid 10-digit mobile number");
       return;
     }
-    setStep("otp");
-    setSeconds(30);
-    toast.success(`OTP sent to +91 ${phone}`, { description: "Demo OTP: 123456" });
+
+    setSending(true);
+    try {
+      const res = await fetch(`${BASE_URL}/otp/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.detail ?? "Failed to send OTP. Please try again.");
+        return;
+      }
+
+      setBypassActive(data.bypass_active ?? false);
+      setStep("otp");
+      setSeconds(30);
+
+      if (data.bypass_active) {
+        toast.success("OTP sent!", {
+          description: "Bypass mode active — use 123456",
+        });
+      } else {
+        toast.success(`OTP sent to +91 ${phone}`);
+      }
+    } catch {
+      toast.error("Network error. Check your connection and try again.");
+    } finally {
+      setSending(false);
+    }
   };
+
+  // ── Step 2: Verify OTP ─────────────────────────────────────────────────────
 
   const verify = async (code: string) => {
     if (code.length !== 6) return;
-    if (code !== "123456") {
-      toast.error("Incorrect OTP. Demo code is 123456");
+
+    setVerifying(true);
+    try {
+      const res = await fetch(`${BASE_URL}/otp/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, otp: code }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.detail ?? "Invalid OTP. Please try again.");
+        setOtp("");
+        return;
+      }
+
+      // data: { verified, user_id, phone }
+      signIn({ user_id: data.user_id, phone: data.phone, name: data.phone });
+      toast.success("Welcome to Krishna Conscious Yatra!");
+      navigate({ to: "/select-yatra" });
+    } catch {
+      toast.error("Network error. Check your connection and try again.");
       setOtp("");
-      return;
+    } finally {
+      setVerifying(false);
     }
+  };
 
-    // TODO: replace this block with a real API call to POST /otp/verify
-    // The backend should return { user_id: number, full_name: string, phone: string }
-    // Example:
-    //   const res = await fetch("/api/otp/verify", { method: "POST", body: JSON.stringify({ phone, otp: code }) });
-    //   const data = await res.json();
-    //   signIn({ user_id: data.user_id, phone: data.phone, name: data.full_name });
+  // ── Resend OTP ─────────────────────────────────────────────────────────────
 
-    signIn({ user_id: 1, phone, name: "Avishkar Jaiswal" }); // ← swap with real user_id from API response later
-    toast.success("Welcome to Krishna Conscious Yatra!");
-    navigate({ to: "/select-yatra" });
+  const resendOtp = async () => {
+    setOtp("");
+    setSeconds(0);
+    await sendOtp();
   };
 
   return (
@@ -103,15 +161,27 @@ function AuthPage() {
                     placeholder="98765 43210"
                     className="h-12 min-w-0 text-base"
                     onKeyDown={(e) => e.key === "Enter" && sendOtp()}
+                    disabled={sending}
                   />
                 </div>
               </div>
 
-              <Button onClick={sendOtp} size="lg" className="w-full bg-gradient-primary font-bold shadow-glow">
-                Send OTP
+              <Button
+                onClick={sendOtp}
+                size="lg"
+                className="w-full bg-gradient-primary font-bold shadow-glow"
+                disabled={sending}
+              >
+                {sending ? (
+                  <>
+                    <Loader2 className="mr-2 size-4 animate-spin" /> Sending…
+                  </>
+                ) : (
+                  "Send OTP"
+                )}
               </Button>
               <p className="text-center text-xs text-muted-foreground">
-                By continuing you agree to our Terms & Privacy Policy.
+                By continuing you agree to our Terms &amp; Privacy Policy.
               </p>
             </div>
           </>
@@ -122,6 +192,13 @@ function AuthPage() {
               Enter the 6-digit code sent to <span className="font-semibold text-foreground">+91 {phone}</span>
             </p>
 
+            {/* Bypass hint badge */}
+            {bypassActive && (
+              <p className="mt-3 rounded-xl bg-amber-50 px-4 py-2 text-center text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
+                🛠 Dev bypass active — use <span className="font-mono tracking-widest">123456</span>
+              </p>
+            )}
+
             <div className="mt-6 flex justify-center">
               <InputOTP
                 maxLength={6}
@@ -130,6 +207,7 @@ function AuthPage() {
                   setOtp(v);
                   if (v.length === 6) verify(v);
                 }}
+                disabled={verifying}
               >
                 <InputOTPGroup>
                   {[0, 1, 2, 3, 4, 5].map((i) => (
@@ -143,16 +221,23 @@ function AuthPage() {
               onClick={() => verify(otp)}
               size="lg"
               className="mt-6 w-full bg-gradient-primary font-bold shadow-glow"
+              disabled={verifying || otp.length !== 6}
             >
-              Verify & Continue
+              {verifying ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" /> Verifying…
+                </>
+              ) : (
+                "Verify & Continue"
+              )}
             </Button>
 
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-sm text-muted-foreground">
               {seconds > 0 ? (
                 <span>Resend OTP in {seconds}s</span>
               ) : (
-                <button className="font-semibold text-primary" onClick={() => setSeconds(30)}>
-                  Resend OTP
+                <button className="font-semibold text-primary" onClick={resendOtp} disabled={sending}>
+                  {sending ? "Sending…" : "Resend OTP"}
                 </button>
               )}
               <span>·</span>

@@ -13,13 +13,27 @@ class DuplicateUserError(Exception):
 
 
 async def create_user(db: AsyncSession, data: UserCreate) -> User:
-    existing_phone = await db.scalar(
-        select(User).where(User.phone == data.phone)
-    )
-    if existing_phone:
+    existing = await db.scalar(select(User).where(User.phone == data.phone))
+    if existing:
         raise DuplicateUserError("phone")
 
     user = User(**data.model_dump())
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def get_or_create_user_by_phone(db: AsyncSession, phone: str) -> User:
+    """
+    Return the existing user for this phone, or create a new account on the spot.
+    Used by OTP verify — a user logging in for the first time gets auto-registered.
+    """
+    user = await db.scalar(select(User).where(User.phone == phone))
+    if user:
+        return user
+
+    user = User(phone=phone)
     db.add(user)
     await db.commit()
     await db.refresh(user)

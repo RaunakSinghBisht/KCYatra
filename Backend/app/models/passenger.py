@@ -14,15 +14,17 @@ class Passenger(Base):
     full_name: Mapped[str] = mapped_column(String(60), nullable=False)
     gender: Mapped[str] = mapped_column(String(10), nullable=False)  # 'male' | 'female'
     year_of_birth: Mapped[int] = mapped_column(Integer, nullable=False)
-    special_assistance: Mapped[str] = mapped_column(
-        String(100), default="Not Required", nullable=False
-    )
+    phone_no: Mapped[str | None] = mapped_column(String(10), nullable=True)
     state: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    district: Mapped[str | None] = mapped_column(String(100), nullable=True)
     city: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    aadhaar_no: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    special_assistance: Mapped[str] = mapped_column(
+        String(200), default="Not Required", nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    is_deleted: Mapped[bool] = mapped_column(default=False, nullable=False)
 
     # Relationships
     user: Mapped["User"] = relationship("User", lazy="selectin")  # type: ignore[name-defined]

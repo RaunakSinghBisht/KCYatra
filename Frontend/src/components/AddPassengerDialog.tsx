@@ -21,8 +21,9 @@ export type Passenger = {
   year_of_birth: number;
   special_assistance: string;
   state: string | null;
+  district: string | null;
   city: string | null;
-  aadhaar_no: string | null;
+  phone_no: string | null;
   created_at: string;
 };
 
@@ -48,13 +49,18 @@ export function AddPassengerDialog({ trigger, userId, passenger, onSuccess }: Pr
   const [loading, setLoading] = useState(false);
 
   // Form state — pre-fill in edit mode
+  const initAbility = passenger?.special_assistance && passenger.special_assistance !== "Not Required" ? "Required" : "Not Required";
+  const initAbilityDetails = initAbility === "Required" && passenger?.special_assistance !== "Required" ? passenger.special_assistance : "";
+
   const [gender, setGender] = useState<"male" | "female">(passenger?.gender ?? "male");
-  const [ability, setAbility] = useState(passenger?.special_assistance ?? "Not Required");
+  const [ability, setAbility] = useState(initAbility);
+  const [abilityDetails, setAbilityDetails] = useState(initAbilityDetails);
   const [name, setName] = useState(passenger?.full_name ?? "");
   const [year, setYear] = useState(passenger?.year_of_birth ? String(passenger.year_of_birth) : "");
   const [state, setState] = useState(passenger?.state ?? "");
+  const [district, setDistrict] = useState(passenger?.district ?? "");
   const [city, setCity] = useState(passenger?.city ?? "");
-  const [aadhaar, setAadhaar] = useState(passenger?.aadhaar_no ?? "");
+  const [phone, setPhone] = useState(passenger?.phone_no ?? "");
 
   const districtOptions = useMemo(
     () => (state ? (states[state] ?? []).map((d) => ({ value: d, label: d })) : []),
@@ -63,13 +69,18 @@ export function AddPassengerDialog({ trigger, userId, passenger, onSuccess }: Pr
 
   // Reset form to initial / edit values when dialog opens
   function resetForm() {
+    const initA = passenger?.special_assistance && passenger.special_assistance !== "Not Required" ? "Required" : "Not Required";
+    const initADetails = initA === "Required" && passenger?.special_assistance !== "Required" ? passenger.special_assistance : "";
+
     setGender(passenger?.gender ?? "male");
-    setAbility(passenger?.special_assistance ?? "Not Required");
+    setAbility(initA);
+    setAbilityDetails(initADetails);
     setName(passenger?.full_name ?? "");
     setYear(passenger?.year_of_birth ? String(passenger.year_of_birth) : "");
     setState(passenger?.state ?? "");
+    setDistrict(passenger?.district ?? "");
     setCity(passenger?.city ?? "");
-    setAadhaar(passenger?.aadhaar_no ?? "");
+    setPhone(passenger?.phone_no ?? "");
   }
 
   function handleOpenChange(next: boolean) {
@@ -82,12 +93,24 @@ export function AddPassengerDialog({ trigger, userId, passenger, onSuccess }: Pr
 
     // ── Client-side validation ──
     if (!name.trim()) { toast.error("Full name is required"); return; }
+    if (name.trim().length < 3) { toast.error("Full name must be at least 3 characters"); return; }
     const yob = Number(year);
     if (!year || isNaN(yob) || yob < 1900 || yob > new Date().getFullYear()) {
       toast.error("Enter a valid year of birth");
       return;
     }
     if (!gender) { toast.error("Please select a gender"); return; }
+    if (phone && phone.replace(/\D/g, "").length !== 10) {
+      toast.error("Phone number must be exactly 10 digits"); return;
+    }
+    if (ability === "Required") {
+      if (!abilityDetails.trim()) {
+        toast.error("Please specify your special requirement details"); return;
+      }
+      if (abilityDetails.trim().length > 200) {
+        toast.error("Special requirement must be at most 200 characters"); return;
+      }
+    }
 
     setLoading(true);
     try {
@@ -96,10 +119,11 @@ export function AddPassengerDialog({ trigger, userId, passenger, onSuccess }: Pr
         full_name: name.trim(),
         gender,
         year_of_birth: yob,
-        special_assistance: ability,
+        special_assistance: ability === "Required" ? (abilityDetails.trim() || "Required") : "Not Required",
         state: state || null,
+        district: district || null,
         city: city.trim() || null,
-        aadhaar_no: aadhaar.trim() || null,
+        phone_no: phone.replace(/\D/g, "") || null,
       };
 
       const isEdit = Boolean(passenger);
@@ -173,15 +197,32 @@ export function AddPassengerDialog({ trigger, userId, passenger, onSuccess }: Pr
           </div>
 
           {/* Special assistance */}
-          <Select value={ability} onValueChange={setAbility}>
-            <SelectTrigger className="h-12 rounded-2xl font-semibold">
-              <SelectValue placeholder="Special Assistance?" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Not Required">Special assistance- Not Required</SelectItem>
-              <SelectItem value="Required">Special assistance- Required</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="grid gap-2">
+            <Select value={ability} onValueChange={setAbility}>
+              <SelectTrigger className="h-12 rounded-2xl font-semibold">
+                <SelectValue placeholder="Special Assistance?" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Not Required">Special assistance- Not Required</SelectItem>
+                <SelectItem value="Required">Special assistance- Required</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {ability === "Required" && (
+              <Input
+                className="h-12 rounded-2xl"
+                placeholder="Please specify your requirement (e.g., Wheelchair)"
+                value={abilityDetails}
+                onChange={(e) => {
+                  if (e.target.value.length > 200) {
+                    toast.error("Max 200 Characters Allowed");
+                  } else {
+                    setAbilityDetails(e.target.value);
+                  }
+                }}
+              />
+            )}
+          </div>
 
           {/* Full name */}
           <Input
@@ -205,12 +246,23 @@ export function AddPassengerDialog({ trigger, userId, passenger, onSuccess }: Pr
             onChange={(e) => setYear(e.target.value.replace(/\D/g, ""))}
           />
 
-          {/* State / City */}
+          {/* Phone Number */}
+          <Input
+            className="h-12 rounded-2xl"
+            placeholder="Phone Number (10 digits, Optional)"
+            inputMode="numeric"
+            maxLength={10}
+            value={phone}
+            onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+          />
+
+          {/* State / District / City */}
           <div className="grid grid-cols-3 gap-2">
             <Select
               value={state}
               onValueChange={(value) => {
                 setState(value);
+                setDistrict("");
                 setCity("");
               }}
             >
@@ -226,7 +278,7 @@ export function AddPassengerDialog({ trigger, userId, passenger, onSuccess }: Pr
               </SelectContent>
             </Select>
 
-            <Select value={city} onValueChange={setCity} disabled={!state}>
+            <Select value={district} onValueChange={setDistrict} disabled={!state}>
               <SelectTrigger className="h-12 rounded-2xl font-semibold">
                 <SelectValue placeholder={state ? "District" : "Select state"} />
               </SelectTrigger>
@@ -246,15 +298,6 @@ export function AddPassengerDialog({ trigger, userId, passenger, onSuccess }: Pr
               onChange={(e) => setCity(e.target.value)}
             />
           </div>
-
-          {/* Aadhaar */}
-          <Input
-            className="h-12 rounded-2xl"
-            placeholder="Aadhaar ID / Virtual ID (Optional)"
-            inputMode="numeric"
-            value={aadhaar}
-            onChange={(e) => setAadhaar(e.target.value.replace(/\D/g, ""))}
-          />
 
           <Button
             type="submit"
