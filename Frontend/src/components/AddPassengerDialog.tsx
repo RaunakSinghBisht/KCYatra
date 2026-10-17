@@ -61,6 +61,7 @@ export function AddPassengerDialog({ trigger, userId, passenger, onSuccess }: Pr
   const [district, setDistrict] = useState(passenger?.district ?? "");
   const [city, setCity] = useState(passenger?.city ?? "");
   const [phone, setPhone] = useState(passenger?.phone_no ?? "");
+  const [showAssistanceInfo, setShowAssistanceInfo] = useState(false);
 
   const districtOptions = useMemo(
     () => (state ? (states[state] ?? []).map((d) => ({ value: d, label: d })) : []),
@@ -207,6 +208,21 @@ export function AddPassengerDialog({ trigger, userId, passenger, onSuccess }: Pr
                 <SelectItem value="Required">Special assistance- Required</SelectItem>
               </SelectContent>
             </Select>
+
+            {/* Click-toggle info for Special Assistance */}
+            <button
+              type="button"
+              onClick={() => setShowAssistanceInfo((v) => !v)}
+              className="w-fit text-xs font-semibold text-primary underline underline-offset-2"
+            >
+              Know about Special Assistance ?
+            </button>
+            {showAssistanceInfo && (
+              <div className="rounded-2xl border border-border bg-card p-3.5 text-xs leading-relaxed text-foreground shadow-soft">
+                If you have a long-term medical condition or physical limitation and would like a personal assistant to support you throughout the yatra, please select{" "}
+                <strong>"REQUIRED"</strong>. We are here to ensure your journey is comfortable, safe, and as smooth as possible. 🙏
+              </div>
+            )}
 
             {ability === "Required" && (
               <Input

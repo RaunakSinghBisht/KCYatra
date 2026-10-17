@@ -621,6 +621,7 @@ function BookYatra() {
   const [sel, setSel] = useState<Record<number, Selection>>({});
   const [paidIds, setPaidIds] = useState<Set<number>>(new Set());
   const [payOpen, setPayOpen] = useState(false);
+  const [acceptPayments, setAcceptPayments] = useState(true);
 
   // passenger_id → registration_id
   const [regIds, setRegIds] = useState<Record<number, number>>({});
@@ -645,6 +646,14 @@ function BookYatra() {
 
   useEffect(() => { userIdRef.current = user?.user_id ?? 0; }, [user?.user_id]);
   useEffect(() => { yatraIdRef.current = Number(id); }, [id]);
+
+  // Fetch site settings to check if payments are enabled
+  useEffect(() => {
+    fetch(`${BASE_URL}/dam-page/`)
+      .then((r) => r.ok ? r.json() : Promise.reject())
+      .then((data: { accept_payments: boolean }) => setAcceptPayments(data.accept_payments))
+      .catch(() => { /* keep default true on error */ });
+  }, []);
 
   // ── Fetch yatra + passengers in parallel ──────────────────────────────────
   useEffect(() => {
@@ -968,13 +977,24 @@ function BookYatra() {
       </main>
 
       {passengers.length > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-40 bg-gradient-primary px-4 py-4 text-center shadow-glow">
+        <div
+          className={cn(
+            "fixed inset-x-0 bottom-0 z-40 px-4 py-4 text-center shadow-glow",
+            acceptPayments ? "bg-gradient-primary" : "bg-muted",
+          )}
+        >
           <button
             type="button"
-            onClick={handleProceedToPay}
-            className="w-full text-xl font-extrabold tracking-tight text-primary-foreground"
+            onClick={acceptPayments ? handleProceedToPay : undefined}
+            disabled={!acceptPayments}
+            className={cn(
+              "w-full text-xl font-extrabold tracking-tight",
+              acceptPayments
+                ? "text-primary-foreground"
+                : "cursor-not-allowed text-muted-foreground",
+            )}
           >
-            Proceed to Pay
+            {acceptPayments ? "Proceed to Pay" : "Payments Temporarily Unavailable"}
           </button>
         </div>
       )}

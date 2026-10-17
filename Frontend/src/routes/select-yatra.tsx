@@ -6,7 +6,7 @@ import { Compass, Loader2 } from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { BASE_URL } from "@/lib/api";
 import { toast } from "sonner";
-import yatra1 from "@/assets/yatra-1.jpg";
+import yatra1 from "@/assets/yatra-1.jpeg";
 
 export const Route = createFileRoute("/select-yatra")({
   head: () => ({
@@ -29,8 +29,8 @@ type Yatra = {
   end_date: string;
   is_start_date_fixed: boolean;
   is_end_date_fixed: boolean;
-  status: string;      // "upcoming" | "active" | "closed"
-  message_for_passengers: string | null;
+  status: string;      // "upcoming" | "open" | "close"
+  description: string | null;
   whatsapp_group_link: string | null;
   hotel_packages: { title: string; price: number }[] | null;
   travel_packages: { title: string; price: number }[] | null;
@@ -39,16 +39,13 @@ type Yatra = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function formatDateRange(start: string, end: string): string {
-  const s = new Date(start);
-  const e = new Date(end);
   const fmt = (d: Date) =>
     d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-  const nights = Math.round((e.getTime() - s.getTime()) / 86_400_000);
-  return `${nights} nights · ${fmt(s)} – ${fmt(e)}`;
+  return `${fmt(new Date(start))} – ${fmt(new Date(end))}`;
 }
 
 function statusLabel(status: string): string {
-  return { upcoming: "Registrations Open", active: "Active", closed: "Closed" }[status] ?? status;
+  return { upcoming: "Registrations Open", open: "Open", close: "Closed", closed: "Closed", active: "Active" }[status] ?? status;
 }
 
 function statusVariant(status: string): "secondary" | "destructive" | "outline" {
@@ -85,7 +82,7 @@ function SelectYatra() {
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">Curated journeys, ready to book.</p>
 
-          <section className="mt-6 grid max-w-md gap-4">
+          <section className="mt-6 flex flex-wrap justify-center gap-5 [&>article]:w-full [&>article]:sm:w-96 [&>article]:lg:w-[420px]">
             {/* Loading */}
             {loading && (
               <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
@@ -105,7 +102,7 @@ function SelectYatra() {
               yatras.map((y) => (
                 <article
                   key={y.id}
-                  className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft"
+                  className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-soft"
                 >
                   <img
                     src={y.image_url ?? yatra1}
@@ -113,18 +110,23 @@ function SelectYatra() {
                     width={1600}
                     height={900}
                     loading="lazy"
-                    className="h-36 w-full object-cover"
+                    className="h-48 w-full object-fill"
                     onError={(e) => { (e.currentTarget as HTMLImageElement).src = yatra1; }}
                   />
-                  <div className="p-4">
-                    <Badge variant={statusVariant(y.status)} className="font-semibold">
+                  <div className="flex flex-1 flex-col p-4">
+                    <Badge variant={statusVariant(y.status)} className="font-semibold self-start">
                       {statusLabel(y.status)}
                     </Badge>
                     <h2 className="mt-2 truncate text-base font-bold">{y.title}</h2>
-                    <p className="text-xs text-muted-foreground">
+                    {y.description && (
+                      <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
+                        {y.description}
+                      </p>
+                    )}
+                    <p className="mt-1 text-xs text-muted-foreground/70">
                       {formatDateRange(y.start_date, y.end_date)}
                     </p>
-                    <div className="mt-3">
+                    <div className="mt-auto pt-4">
                       <Button
                         asChild
                         size="sm"

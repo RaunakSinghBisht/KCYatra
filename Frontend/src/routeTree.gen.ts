@@ -15,6 +15,17 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as PersonalDetailsRouteImport } from './routes/personal-details'
 import { Route as SelectYatraRouteImport } from './routes/select-yatra'
 import { Route as TransactionsRouteImport } from './routes/transactions'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminAdminsRouteImport } from './routes/admin.admins'
+import { Route as AdminBookingsRouteImport } from './routes/admin.bookings'
+import { Route as AdminCarouselRouteImport } from './routes/admin.carousel'
+import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as AdminMaintenanceRouteImport } from './routes/admin.maintenance'
+import { Route as AdminNoticesRouteImport } from './routes/admin.notices'
+import { Route as AdminUserRouteImport } from './routes/admin.user'
+import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminYatrasRouteImport } from './routes/admin.yatras'
+import { Route as AdminYoutubeRouteImport } from './routes/admin.youtube'
 import { Route as BookIdRouteImport } from './routes/book.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -47,6 +58,61 @@ const TransactionsRoute = TransactionsRouteImport.update({
   path: '/transactions',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAdminsRoute = AdminAdminsRouteImport.update({
+  id: '/admin/admins',
+  path: '/admin/admins',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminBookingsRoute = AdminBookingsRouteImport.update({
+  id: '/admin/bookings',
+  path: '/admin/bookings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminCarouselRoute = AdminCarouselRouteImport.update({
+  id: '/admin/carousel',
+  path: '/admin/carousel',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/admin/login',
+  path: '/admin/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminMaintenanceRoute = AdminMaintenanceRouteImport.update({
+  id: '/admin/maintenance',
+  path: '/admin/maintenance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminNoticesRoute = AdminNoticesRouteImport.update({
+  id: '/admin/notices',
+  path: '/admin/notices',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminUserRoute = AdminUserRouteImport.update({
+  id: '/admin/user',
+  path: '/admin/user',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminYatrasRoute = AdminYatrasRouteImport.update({
+  id: '/admin/yatras',
+  path: '/admin/yatras',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminYoutubeRoute = AdminYoutubeRouteImport.update({
+  id: '/admin/youtube',
+  path: '/admin/youtube',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BookIdRoute = BookIdRouteImport.update({
   id: '/book/$id',
   path: '/book/$id',
@@ -60,7 +126,18 @@ export interface FileRoutesByFullPath {
   '/personal-details': typeof PersonalDetailsRoute
   '/select-yatra': typeof SelectYatraRoute
   '/transactions': typeof TransactionsRoute
+  '/admin/admins': typeof AdminAdminsRoute
+  '/admin/bookings': typeof AdminBookingsRoute
+  '/admin/carousel': typeof AdminCarouselRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/maintenance': typeof AdminMaintenanceRoute
+  '/admin/notices': typeof AdminNoticesRoute
+  '/admin/user': typeof AdminUserRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/admin/yatras': typeof AdminYatrasRoute
+  '/admin/youtube': typeof AdminYoutubeRoute
   '/book/$id': typeof BookIdRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -69,7 +146,18 @@ export interface FileRoutesByTo {
   '/personal-details': typeof PersonalDetailsRoute
   '/select-yatra': typeof SelectYatraRoute
   '/transactions': typeof TransactionsRoute
+  '/admin/admins': typeof AdminAdminsRoute
+  '/admin/bookings': typeof AdminBookingsRoute
+  '/admin/carousel': typeof AdminCarouselRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/maintenance': typeof AdminMaintenanceRoute
+  '/admin/notices': typeof AdminNoticesRoute
+  '/admin/user': typeof AdminUserRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/admin/yatras': typeof AdminYatrasRoute
+  '/admin/youtube': typeof AdminYoutubeRoute
   '/book/$id': typeof BookIdRoute
+  '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -79,7 +167,18 @@ export interface FileRoutesById {
   '/personal-details': typeof PersonalDetailsRoute
   '/select-yatra': typeof SelectYatraRoute
   '/transactions': typeof TransactionsRoute
+  '/admin/admins': typeof AdminAdminsRoute
+  '/admin/bookings': typeof AdminBookingsRoute
+  '/admin/carousel': typeof AdminCarouselRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/maintenance': typeof AdminMaintenanceRoute
+  '/admin/notices': typeof AdminNoticesRoute
+  '/admin/user': typeof AdminUserRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/admin/yatras': typeof AdminYatrasRoute
+  '/admin/youtube': typeof AdminYoutubeRoute
   '/book/$id': typeof BookIdRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -90,7 +189,18 @@ export interface FileRouteTypes {
     | '/personal-details'
     | '/select-yatra'
     | '/transactions'
+    | '/admin/admins'
+    | '/admin/bookings'
+    | '/admin/carousel'
+    | '/admin/login'
+    | '/admin/maintenance'
+    | '/admin/notices'
+    | '/admin/user'
+    | '/admin/users'
+    | '/admin/yatras'
+    | '/admin/youtube'
     | '/book/$id'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -99,7 +209,18 @@ export interface FileRouteTypes {
     | '/personal-details'
     | '/select-yatra'
     | '/transactions'
+    | '/admin/admins'
+    | '/admin/bookings'
+    | '/admin/carousel'
+    | '/admin/login'
+    | '/admin/maintenance'
+    | '/admin/notices'
+    | '/admin/user'
+    | '/admin/users'
+    | '/admin/yatras'
+    | '/admin/youtube'
     | '/book/$id'
+    | '/admin'
   id:
     | '__root__'
     | '/'
@@ -108,7 +229,18 @@ export interface FileRouteTypes {
     | '/personal-details'
     | '/select-yatra'
     | '/transactions'
+    | '/admin/admins'
+    | '/admin/bookings'
+    | '/admin/carousel'
+    | '/admin/login'
+    | '/admin/maintenance'
+    | '/admin/notices'
+    | '/admin/user'
+    | '/admin/users'
+    | '/admin/yatras'
+    | '/admin/youtube'
     | '/book/$id'
+    | '/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -118,7 +250,18 @@ export interface RootRouteChildren {
   PersonalDetailsRoute: typeof PersonalDetailsRoute
   SelectYatraRoute: typeof SelectYatraRoute
   TransactionsRoute: typeof TransactionsRoute
+  AdminAdminsRoute: typeof AdminAdminsRoute
+  AdminBookingsRoute: typeof AdminBookingsRoute
+  AdminCarouselRoute: typeof AdminCarouselRoute
+  AdminLoginRoute: typeof AdminLoginRoute
+  AdminMaintenanceRoute: typeof AdminMaintenanceRoute
+  AdminNoticesRoute: typeof AdminNoticesRoute
+  AdminUserRoute: typeof AdminUserRoute
+  AdminUsersRoute: typeof AdminUsersRoute
+  AdminYatrasRoute: typeof AdminYatrasRoute
+  AdminYoutubeRoute: typeof AdminYoutubeRoute
   BookIdRoute: typeof BookIdRoute
+  AdminIndexRoute: typeof AdminIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -165,6 +308,83 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TransactionsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/admins': {
+      id: '/admin/admins'
+      path: '/admin/admins'
+      fullPath: '/admin/admins'
+      preLoaderRoute: typeof AdminAdminsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/bookings': {
+      id: '/admin/bookings'
+      path: '/admin/bookings'
+      fullPath: '/admin/bookings'
+      preLoaderRoute: typeof AdminBookingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/carousel': {
+      id: '/admin/carousel'
+      path: '/admin/carousel'
+      fullPath: '/admin/carousel'
+      preLoaderRoute: typeof AdminCarouselRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/admin/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/maintenance': {
+      id: '/admin/maintenance'
+      path: '/admin/maintenance'
+      fullPath: '/admin/maintenance'
+      preLoaderRoute: typeof AdminMaintenanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/notices': {
+      id: '/admin/notices'
+      path: '/admin/notices'
+      fullPath: '/admin/notices'
+      preLoaderRoute: typeof AdminNoticesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/user': {
+      id: '/admin/user'
+      path: '/admin/user'
+      fullPath: '/admin/user'
+      preLoaderRoute: typeof AdminUserRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/yatras': {
+      id: '/admin/yatras'
+      path: '/admin/yatras'
+      fullPath: '/admin/yatras'
+      preLoaderRoute: typeof AdminYatrasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/youtube': {
+      id: '/admin/youtube'
+      path: '/admin/youtube'
+      fullPath: '/admin/youtube'
+      preLoaderRoute: typeof AdminYoutubeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/book/$id': {
       id: '/book/$id'
       path: '/book/$id'
@@ -182,7 +402,18 @@ const rootRouteChildren: RootRouteChildren = {
   PersonalDetailsRoute: PersonalDetailsRoute,
   SelectYatraRoute: SelectYatraRoute,
   TransactionsRoute: TransactionsRoute,
+  AdminAdminsRoute: AdminAdminsRoute,
+  AdminBookingsRoute: AdminBookingsRoute,
+  AdminCarouselRoute: AdminCarouselRoute,
+  AdminLoginRoute: AdminLoginRoute,
+  AdminMaintenanceRoute: AdminMaintenanceRoute,
+  AdminNoticesRoute: AdminNoticesRoute,
+  AdminUserRoute: AdminUserRoute,
+  AdminUsersRoute: AdminUsersRoute,
+  AdminYatrasRoute: AdminYatrasRoute,
+  AdminYoutubeRoute: AdminYoutubeRoute,
   BookIdRoute: BookIdRoute,
+  AdminIndexRoute: AdminIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

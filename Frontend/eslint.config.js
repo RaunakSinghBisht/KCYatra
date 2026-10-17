@@ -36,5 +36,55 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
+  // Architectural boundary: Admin code must not import client-side auth or components
+  {
+    files: ["src/features/admin/**/*.{ts,tsx}", "src/routes/admin.*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "@/lib/yatra-auth",
+                "**/yatra-auth",
+                "@/components/SiteHeader",
+                "@/components/Dashboard*",
+                "@/components/AddPassengerDialog*",
+              ],
+              message: "Admin code must not import client-side auth or components to preserve modular independence.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // Architectural boundary: Client code must not depend on admin feature code
+  {
+    files: [
+      "src/components/*.{ts,tsx}",
+      "src/lib/yatra-*.{ts,tsx}",
+      "src/routes/auth.tsx",
+      "src/routes/book.*.tsx",
+      "src/routes/dashboard.tsx",
+      "src/routes/index.tsx",
+      "src/routes/personal-details.tsx",
+      "src/routes/select-yatra.tsx",
+      "src/routes/transactions.tsx",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/features/admin/*", "**/features/admin/*"],
+              message: "Client code must not depend on Admin feature code.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   eslintPluginPrettier,
 );

@@ -6,7 +6,7 @@ from app.models.passenger import Passenger
 from app.models.registration import Registration
 from app.models.user import User
 from app.models.yatra import Yatra
-from app.schemas.registration import RegistrationCreate, RegistrationPackageUpdate
+from app.schemas.registration import AdminManualBookingCreate, RegistrationCreate, RegistrationPackageUpdate
 
 
 class RegistrationError(Exception):
@@ -173,6 +173,156 @@ async def mark_registrations_as_cash(
         await db.commit()
     
     return updated_ids
+
+
+async def get_all_registrations_admin(db: AsyncSession) -> list[dict]:
+    """Admin view: all registrations with joined passenger, user, and yatra data."""
+    stmt = (
+        select(
+            Registration.id,
+            Registration.passenger_id,
+            Registration.user_id,
+            Registration.yatra_id,
+            Registration.hotel_package,
+            Registration.travel_package,
+            Registration.payment_status,
+            Registration.amount_paid,
+            Registration.payment_method,
+            Registration.transaction_id,
+            Registration.created_at,
+            Registration.updated_at,
+            Passenger.full_name.label("passenger_name"),
+            Passenger.gender.label("passenger_gender"),
+            Passenger.year_of_birth.label("passenger_yob"),
+            Passenger.phone_no.label("passenger_phone"),
+            Passenger.city.label("passenger_city"),
+            Passenger.district.label("passenger_district"),
+            Passenger.state.label("passenger_state"),
+            Passenger.special_assistance.label("passenger_special_assistance"),
+            Yatra.title.label("yatra_title"),
+            User.phone.label("user_phone"),
+        )
+        .join(Passenger, Registration.passenger_id == Passenger.id)
+        .join(Yatra, Registration.yatra_id == Yatra.id)
+        .outerjoin(User, Registration.user_id == User.id)
+        .order_by(Registration.created_at.desc())
+    )
+    result = await db.execute(stmt)
+    return [dict(row._mapping) for row in result.all()]
+
+
+async def delete_registration(db: AsyncSession, registration_id: int) -> bool:
+    """Hard delete a registration."""
+    reg = await db.scalar(select(Registration).where(Registration.id == registration_id))
+    if not reg:
+        return False
+    await db.delete(reg)
+    await db.commit()
+    return True
+
+
+async def admin_update_registration(
+    db: AsyncSession,
+    registration_id: int,
+    hotel_package: str | None,
+    travel_package: str | None,
+    payment_status: str | None,
+    amount_paid: float | None,
+    payment_method: str | None,
+    transaction_id: str | None,
+) -> Registration | None:
+    """Admin: update any editable field on a registration."""
+    reg = await db.scalar(select(Registration).where(Registration.id == registration_id))
+    if not reg:
+        return None
+    if hotel_package is not None:
+        reg.hotel_package = hotel_package
+    if travel_package is not None:
+        reg.travel_package = travel_package
+    if payment_status is not None:
+        reg.payment_status = payment_status
+    if amount_paid is not None:
+        reg.amount_paid = amount_paid  # type: ignore[assignment]
+    if payment_method is not None:
+        reg.payment_method = payment_method
+    if transaction_id is not None:
+        reg.transaction_id = transaction_id
+    await db.commit()
+    await db.refresh(reg)
+    return reg
+
+
+async def admin_manual_create_registration(
+    db: AsyncSession,
+    data: AdminManualBookingCreate,
+) -> Registration:
+    """Admin-only: create a passenger (if needed) + registration, bypassing yatra status check."""
+    from app.crud.user import get_or_create_user_by_phone
+
+    # Verify yatra exists (no status check — admin can book for closed yatras)
+    yatra = await db.scalar(select(Yatra).where(Yatra.id == data.yatra_id, Yatra.is_deleted == False))  # noqa: E712
+    if not yatra:
+        raise YatraNotFoundError(f"Yatra with id={data.yatra_id} not found.")
+
+    # Resolve or create passenger
+    if data.passenger_id is not None:
+        passenger = await db.scalar(select(Passenger).where(Passenger.id == data.passenger_id))
+        if not passenger:
+            raise PassengerNotFoundError(f"Passenger with id={data.passenger_id} not found.")
+        user_id = passenger.user_id
+    else:
+        if not data.full_name or not data.year_of_birth:
+            raise RegistrationError("full_name and year_of_birth are required for a new passenger.")
+        phone = (data.login_phone or "").strip() or "0000000000"
+        user = await get_or_create_user_by_phone(db, phone)
+        passenger = Passenger(
+            user_id=user.id,
+            full_name=data.full_name.strip(),
+            gender=data.gender or "male",
+            year_of_birth=data.year_of_birth,
+            phone_no=data.phone_no or None,
+            state=data.state or None,
+            district=data.district or None,
+            city=data.city or None,
+            special_assistance=data.special_assistance or "Not Required",
+        )
+        db.add(passenger)
+        await db.flush()
+        user_id = user.id
+
+    # Duplicate check
+    existing = await db.scalar(
+        select(Registration).where(
+            Registration.passenger_id == passenger.id,
+            Registration.yatra_id == data.yatra_id,
+        )
+    )
+    if existing:
+        raise DuplicateRegistrationError(
+            f"Passenger {passenger.full_name} is already registered for this yatra."
+        )
+
+    registration = Registration(
+        passenger_id=passenger.id,
+        user_id=user_id,
+        yatra_id=data.yatra_id,
+        hotel_package=data.hotel_package,
+        travel_package=data.travel_package,
+        payment_status=data.payment_status,
+        amount_paid=data.amount_paid,  # type: ignore[arg-type]
+        payment_method=data.payment_method,
+        transaction_id=data.transaction_id,
+    )
+    db.add(registration)
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise DuplicateRegistrationError(
+            f"Passenger {passenger.full_name} is already registered for this yatra."
+        )
+    await db.refresh(registration)
+    return registration
 
 
 async def get_user_bookings(db: AsyncSession, user_id: int) -> list[dict]:

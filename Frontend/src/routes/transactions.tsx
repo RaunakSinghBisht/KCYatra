@@ -88,13 +88,13 @@ function Transactions() {
             <div className="mt-10 flex justify-center">
               <Loader2 className="size-8 animate-spin text-primary" />
             </div>
-          ) : bookings.length === 0 ? (
+          ) : bookings.filter((b) => b.payment_status === "paid").length === 0 ? (
             <div className="mt-10 rounded-2xl bg-card p-10 text-center shadow-soft">
-              <p className="text-muted-foreground">No bookings found.</p>
+              <p className="text-muted-foreground">No paid bookings found.</p>
             </div>
           ) : (
             <ul className="mt-6 space-y-5">
-              {bookings.map((t) => {
+              {bookings.filter((b) => b.payment_status === "paid").map((t) => {
                 const yatraYear = new Date(t.yatra_start_date).getFullYear();
                 const age = ageAtStart(t.passenger_yob, yatraYear);
 

@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -21,7 +22,7 @@ class YatraCreate(BaseModel):
     is_end_date_fixed: bool = True
     hotel_packages: list[HotelPackage] | None = None
     travel_packages: list[TravelPackage] | None = None
-    message_for_passengers: str | None = None
+    description: str | None = None
     whatsapp_group_link: str | None = None
     status: str = "upcoming"
 
@@ -33,10 +34,17 @@ class YatraCreate(BaseModel):
             raise ValueError("title must be between 5 and 50 characters.")
         return v
 
+    @field_validator("description")
+    @classmethod
+    def validate_description(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > 500:
+            raise ValueError("description must be at most 500 characters.")
+        return v
+
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: str) -> str:
-        allowed = {"upcoming", "active", "closed"}
+        allowed = {"upcoming", "open", "close"}
         if v.lower() not in allowed:
             raise ValueError(f"status must be one of: {', '.join(sorted(allowed))}")
         return v.lower()
@@ -47,6 +55,45 @@ class YatraCreate(BaseModel):
         start = info.data.get("start_date")
         if start and v < start:
             raise ValueError("end_date must be on or after start_date.")
+        return v
+
+
+class YatraUpdate(BaseModel):
+    title: Optional[str] = None
+    start_date: Optional[date] = None
+    is_start_date_fixed: Optional[bool] = None
+    end_date: Optional[date] = None
+    is_end_date_fixed: Optional[bool] = None
+    hotel_packages: Optional[list[HotelPackage]] = None
+    travel_packages: Optional[list[TravelPackage]] = None
+    description: Optional[str] = None
+    whatsapp_group_link: Optional[str] = None
+    status: Optional[str] = None
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, v: str | None) -> str | None:
+        if v is not None:
+            v = v.strip()
+            if not (5 <= len(v) <= 50):
+                raise ValueError("title must be between 5 and 50 characters.")
+        return v
+
+    @field_validator("description")
+    @classmethod
+    def validate_description(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > 500:
+            raise ValueError("description must be at most 500 characters.")
+        return v
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str | None) -> str | None:
+        if v is not None:
+            allowed = {"upcoming", "open", "close"}
+            if v.lower() not in allowed:
+                raise ValueError(f"status must be one of: {', '.join(sorted(allowed))}")
+            return v.lower()
         return v
 
 
@@ -62,7 +109,7 @@ class YatraResponse(BaseModel):
     is_end_date_fixed: bool
     hotel_packages: list[HotelPackage] | None
     travel_packages: list[TravelPackage] | None
-    message_for_passengers: str | None
+    description: str | None
     whatsapp_group_link: str | None
     status: str
     created_at: datetime

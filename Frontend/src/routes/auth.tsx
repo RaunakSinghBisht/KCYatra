@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { ArrowLeft, Loader2, Phone, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Construction, Loader2, Phone, ScrollText, ShieldCheck } from "lucide-react";
 import { useYatraAuth } from "@/lib/yatra-auth";
 import { BASE_URL } from "@/lib/api";
 
@@ -21,6 +21,33 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+type DamPageData = {
+  enabled: boolean;
+  title: string;
+  description: string;
+  otp_enabled: boolean;
+  accept_payments: boolean;
+};
+
+function DamPageView({ title, description }: { title: string; description: string }) {
+  return (
+    <main className="mx-auto flex min-h-[calc(100vh-65px)] max-w-md flex-col items-center justify-center px-4 py-12 text-center">
+      <span className="grid size-16 place-items-center rounded-2xl bg-gradient-primary text-primary-foreground shadow-glow">
+        <Construction className="size-8" />
+      </span>
+      <h1 className="mt-5 text-2xl font-extrabold tracking-tight sm:text-3xl">{title}</h1>
+      <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">{description}</p>
+      <Button
+        asChild
+        size="lg"
+        className="mt-7 rounded-full bg-gradient-primary px-8 font-bold shadow-glow"
+      >
+        <Link to="/">Back to Home</Link>
+      </Button>
+    </main>
+  );
+}
+
 function AuthPage() {
   const navigate = useNavigate();
   const { signIn, user } = useYatraAuth();
@@ -30,9 +57,26 @@ function AuthPage() {
   const [seconds, setSeconds] = useState(0);
   const [sending, setSending] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [damPage, setDamPage] = useState<DamPageData | null>(null);
+  const [damChecked, setDamChecked] = useState(false);
+  const [siteSettings, setSiteSettings] = useState<DamPageData | null>(null);
+  const [pendingUser, setPendingUser] = useState<{ user_id: number; phone: string } | null>(null);
+  const [showTerms, setShowTerms] = useState(false);
 
   // bypass hint received from backend on /otp/send
   const [bypassActive, setBypassActive] = useState(false);
+
+  // Fetch site settings (dam page + OTP/payment toggles) before rendering
+  useEffect(() => {
+    fetch(`${BASE_URL}/dam-page/`)
+      .then((r) => r.ok ? r.json() : Promise.reject())
+      .then((data: DamPageData) => {
+        setSiteSettings(data);
+        if (data.enabled) setDamPage(data);
+      })
+      .catch(() => { /* silently ignore — show login on error */ })
+      .finally(() => setDamChecked(true));
+  }, []);
 
   useEffect(() => {
     if (user) navigate({ to: "/select-yatra" });
@@ -49,6 +93,30 @@ function AuthPage() {
   const sendOtp = async () => {
     if (!/^\d{10}$/.test(phone)) {
       toast.error("Enter a valid 10-digit mobile number");
+      return;
+    }
+
+    // OTP disabled by admin — use direct login (no OTP needed)
+    if (siteSettings?.otp_enabled === false) {
+      setSending(true);
+      try {
+        const res = await fetch(`${BASE_URL}/otp/direct-login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          toast.error(data.detail ?? "Could not sign in. Please try again.");
+          return;
+        }
+        setPendingUser({ user_id: data.user_id, phone: data.phone });
+        setShowTerms(true);
+      } catch {
+        toast.error("Network error. Check your connection and try again.");
+      } finally {
+        setSending(false);
+      }
       return;
     }
 
@@ -107,9 +175,9 @@ function AuthPage() {
       }
 
       // data: { verified, user_id, phone }
-      signIn({ user_id: data.user_id, phone: data.phone, name: data.phone });
-      toast.success("Welcome to Krishna Conscious Yatra!");
-      navigate({ to: "/select-yatra" });
+      // Hold credentials, show T&C before signing in
+      setPendingUser({ user_id: data.user_id, phone: data.phone });
+      setShowTerms(true);
     } catch {
       toast.error("Network error. Check your connection and try again.");
       setOtp("");
@@ -126,7 +194,22 @@ function AuthPage() {
     await sendOtp();
   };
 
+  const agreeToTerms = () => {
+    if (!pendingUser) return;
+    signIn({ user_id: pendingUser.user_id, phone: pendingUser.phone, name: pendingUser.phone });
+    toast.success("Welcome to Krishna Conscious Yatra!");
+    setShowTerms(false);
+    navigate({ to: "/select-yatra" });
+  };
+
+  // Show nothing until dam-page status is known (avoids flash of login form)
+  if (!damChecked) return null;
+
+  // Dam page is enabled — show maintenance screen instead of login
+  if (damPage) return <DamPageView title={damPage.title} description={damPage.description} />;
+
   return (
+    <>
     <main className="mx-auto flex min-h-[calc(100vh-65px)] max-w-md flex-col justify-center px-4 py-8 sm:px-6">
       <Link to="/" className="mb-6 inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
         <ArrowLeft className="size-4" /> Back to home
@@ -174,10 +257,11 @@ function AuthPage() {
               >
                 {sending ? (
                   <>
-                    <Loader2 className="mr-2 size-4 animate-spin" /> Sending…
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                    {siteSettings?.otp_enabled === false ? "Signing in…" : "Sending…"}
                   </>
                 ) : (
-                  "Send OTP"
+                  siteSettings?.otp_enabled === false ? "Continue without OTP" : "Send OTP"
                 )}
               </Button>
               <p className="text-center text-xs text-muted-foreground">
@@ -255,5 +339,62 @@ function AuthPage() {
         )}
       </div>
     </main>
+
+    {/* ── Terms & Conditions Modal ──────────────────────────────────────── */}
+    {showTerms && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
+        <div className="relative flex max-h-[90dvh] w-full max-w-lg flex-col rounded-3xl border border-border bg-card shadow-2xl">
+          {/* Header */}
+          <div className="flex shrink-0 items-center gap-3 rounded-t-3xl bg-gradient-primary px-6 py-5 text-primary-foreground">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/20">
+              <ScrollText className="size-5" />
+            </span>
+            <div>
+              <h2 className="text-lg font-extrabold leading-tight">Terms &amp; Conditions</h2>
+              <p className="text-xs font-medium opacity-80">Please read and agree before proceeding</p>
+            </div>
+          </div>
+
+          {/* Scrollable body */}
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+            <ul className="space-y-3">
+              {[
+                "This registration is for participating in the Yatra organized by the management.",
+                "Hotel accommodation and food will be provided as part of the yatra package, as per the selected plan.",
+                "Children aged 5 years or below will be provided free hotel accommodation and food.",
+                "Children aged 6 to 10 years will be charged 50% of the hotel and food charges.",
+                "All personal details submitted during registration must be accurate and truthful.",
+                "Any false or incorrect information may result in cancellation of the registration without refund.",
+                "The organizers are not responsible for delays, loss of belongings, during the yatra.",
+                "Any fees paid, if applicable, are non-refundable unless explicitly stated otherwise.",
+                "Personal information collected will be used only for registration and communication related to the Yatra.",
+              ].map((clause, i) => (
+                <li key={i} className="flex gap-3 text-sm leading-relaxed text-foreground">
+                  <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-gradient-primary text-[10px] font-bold text-primary-foreground shadow-glow">
+                    {i + 1}
+                  </span>
+                  {clause}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Footer */}
+          <div className="shrink-0 rounded-b-3xl border-t border-border bg-muted/40 px-6 py-4">
+            <Button
+              onClick={agreeToTerms}
+              size="lg"
+              className="w-full bg-gradient-primary font-bold shadow-glow"
+            >
+              I Agree &amp; Continue
+            </Button>
+            <p className="mt-2 text-center text-xs text-muted-foreground">
+              By clicking above you agree to all the terms listed.
+            </p>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

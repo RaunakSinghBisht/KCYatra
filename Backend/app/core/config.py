@@ -28,6 +28,14 @@ class Settings(BaseSettings):
     RAZORPAY_API_KEY: str = ""
     RAZORPAY_API_SECRET: str = ""
 
+    # ── Yatra Image Storage ───────────────────────────────────────────────────
+    YATRA_IMAGE_DIR: str = "../Frontend/public/yatras"
+    YATRA_IMAGE_URL_PREFIX: str = "/yatras/"
+
+    # ── Carousel Image Storage ────────────────────────────────────────────────
+    CAROUSEL_IMAGE_DIR: str = "../Frontend/public/carousel"
+    CAROUSEL_IMAGE_URL_PREFIX: str = "/carousel/"
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

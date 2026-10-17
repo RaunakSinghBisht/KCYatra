@@ -2,7 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.yatra import Yatra
-from app.schemas.yatra import YatraCreate
+from app.schemas.yatra import YatraCreate, YatraUpdate
 
 
 async def create_yatra(db: AsyncSession, data: YatraCreate, image_url: str | None) -> Yatra:
@@ -17,9 +17,30 @@ async def create_yatra(db: AsyncSession, data: YatraCreate, image_url: str | Non
 
 
 async def get_all_yatras(db: AsyncSession) -> list[Yatra]:
-    result = await db.execute(select(Yatra).order_by(Yatra.start_date.desc()))
+    result = await db.execute(
+        select(Yatra).where(Yatra.is_deleted == False).order_by(Yatra.start_date.desc())  # noqa: E712
+    )
     return list(result.scalars().all())
 
 
 async def get_yatra_by_id(db: AsyncSession, yatra_id: int) -> Yatra | None:
-    return await db.scalar(select(Yatra).where(Yatra.id == yatra_id))
+    return await db.scalar(
+        select(Yatra).where(Yatra.id == yatra_id, Yatra.is_deleted == False)  # noqa: E712
+    )
+
+
+async def update_yatra(db: AsyncSession, yatra: Yatra, data: YatraUpdate, image_url: str | None = None) -> Yatra:
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        if value is not None:  # None = "don't change"; prevents writing NULL into NOT NULL columns
+            setattr(yatra, field, value)
+    if image_url is not None:
+        yatra.image_url = image_url
+    await db.commit()
+    await db.refresh(yatra)
+    return yatra
+
+
+async def delete_yatra(db: AsyncSession, yatra: Yatra) -> None:
+    yatra.is_deleted = True
+    await db.commit()

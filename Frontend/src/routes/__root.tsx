@@ -6,12 +6,15 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  useRouterState,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { YatraAuthProvider } from "@/lib/yatra-auth";
+import { AdminAuthProvider } from "@/features/admin/lib/admin-auth";
+import { AdminStoreProvider } from "@/features/admin/lib/admin-store";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -124,14 +127,20 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (s) => s?.location?.pathname ?? "" });
+  const isAdminRoute = pathname.startsWith("/admin");
 
   return (
     <QueryClientProvider client={queryClient}>
       <YatraAuthProvider>
-        <SiteHeader />
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
-        <Toaster position="top-center" richColors />
+        <AdminAuthProvider>
+          <AdminStoreProvider>
+            {!isAdminRoute && <SiteHeader />}
+            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+            <Outlet />
+            <Toaster position="top-center" richColors />
+          </AdminStoreProvider>
+        </AdminAuthProvider>
       </YatraAuthProvider>
     </QueryClientProvider>
   );

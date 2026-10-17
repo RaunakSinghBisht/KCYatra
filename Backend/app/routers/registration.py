@@ -4,10 +4,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.crud.registration import (
     DuplicateRegistrationError,
     PassengerNotFoundError,
+    RegistrationError,
     UserNotFoundError,
     YatraNotActiveError,
     YatraNotFoundError,
+    admin_manual_create_registration,
+    admin_update_registration,
     create_registration,
+    delete_registration,
+    get_all_registrations_admin,
     get_registration_by_passenger_and_yatra,
     get_registrations_by_passenger,
     get_registrations_by_user,
@@ -17,6 +22,9 @@ from app.crud.registration import (
 )
 from app.dependencies.db import get_db
 from app.schemas.registration import (
+    AdminManualBookingCreate,
+    AdminRegistrationResponse,
+    AdminRegistrationUpdate,
     RegistrationCreate,
     RegistrationPackageUpdate,
     RegistrationResponse,
@@ -25,6 +33,86 @@ from app.schemas.registration import (
 )
 
 router = APIRouter(prefix="/registrations", tags=["Registrations"])
+
+
+@router.get(
+    "/",
+    response_model=list[AdminRegistrationResponse],
+    summary="List all registrations (admin view with joined passenger/yatra data)",
+)
+async def list_all_registrations(
+    db: AsyncSession = Depends(get_db),
+) -> list[AdminRegistrationResponse]:
+    rows = await get_all_registrations_admin(db)
+    return [AdminRegistrationResponse(**row) for row in rows]
+
+
+@router.delete(
+    "/{registration_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Hard-delete a registration (admin)",
+)
+async def delete_registration_route(
+    registration_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    deleted = await delete_registration(db, registration_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Registration {registration_id} not found.",
+        )
+
+
+@router.patch(
+    "/{registration_id}",
+    response_model=RegistrationResponse,
+    summary="Admin update of any editable registration field",
+)
+async def admin_update_registration_route(
+    registration_id: int,
+    payload: AdminRegistrationUpdate,
+    db: AsyncSession = Depends(get_db),
+) -> RegistrationResponse:
+    reg = await admin_update_registration(
+        db,
+        registration_id,
+        hotel_package=payload.hotel_package,
+        travel_package=payload.travel_package,
+        payment_status=payload.payment_status,
+        amount_paid=payload.amount_paid,
+        payment_method=payload.payment_method,
+        transaction_id=payload.transaction_id,
+    )
+    if not reg:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Registration {registration_id} not found.",
+        )
+    return reg
+
+
+@router.post(
+    "/admin-manual",
+    response_model=RegistrationResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Admin: create passenger (if needed) + registration, bypasses yatra status check",
+)
+async def admin_manual_booking(
+    payload: AdminManualBookingCreate,
+    db: AsyncSession = Depends(get_db),
+) -> RegistrationResponse:
+    try:
+        registration = await admin_manual_create_registration(db, payload)
+        return registration
+    except (PassengerNotFoundError, YatraNotFoundError) as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=exc.message) from exc
+    except DuplicateRegistrationError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=exc.message) from exc
+    except RegistrationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=exc.message) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
 
 
 @router.post(

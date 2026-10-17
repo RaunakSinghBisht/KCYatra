@@ -24,6 +24,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.crud.dam_page import get_dam_page
 from app.crud.user import get_or_create_user_by_phone
 from app.dependencies.db import get_db
 from app.schemas.otp import (
@@ -161,6 +162,38 @@ async def verify_otp(
     return OtpVerifyResponse(
         verified=True,
         message="OTP verified successfully.",
+        user_id=user.id,
+        phone=user.phone,
+    )
+
+
+# ── POST /otp/direct-login ────────────────────────────────────────────────────
+
+@router.post(
+    "/direct-login",
+    response_model=OtpVerifyResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Login with phone only (no OTP) — only when otp_enabled=false in site settings",
+)
+async def direct_login(
+    payload: OtpSendRequest,
+    db: AsyncSession = Depends(get_db),
+) -> OtpVerifyResponse:
+    """
+    Allows phone-only login when the admin has disabled OTP verification.
+    Returns 403 if OTP is still enabled in site settings.
+    """
+    site = await get_dam_page(db)
+    if site.otp_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="OTP login is required. Direct login is not permitted.",
+        )
+
+    user = await get_or_create_user_by_phone(db, payload.phone)
+    return OtpVerifyResponse(
+        verified=True,
+        message="Logged in without OTP.",
         user_id=user.id,
         phone=user.phone,
     )

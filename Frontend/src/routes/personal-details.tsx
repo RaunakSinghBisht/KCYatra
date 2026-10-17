@@ -127,12 +127,12 @@ function PersonalDetails() {
       {(user) => (
         <>
           {/* Profile hero */}
-          <section className="rounded-3xl bg-gradient-primary px-6 py-8 text-center text-primary-foreground shadow-glow">
-            <span className="mx-auto grid size-24 place-items-center rounded-full bg-primary-foreground/20 backdrop-blur">
-              <UserRound className="size-12" />
+          <section className="rounded-3xl px-6 py-8 text-center shadow-glow" style={{ background: "linear-gradient(to bottom, oklch(0.68 0.19 45), oklch(0.96 0.09 80))" }}>
+            <span className="mx-auto grid size-24 place-items-center rounded-full bg-white/80 backdrop-blur">
+              <UserRound className="size-12 text-accent-foreground" />
             </span>
-            <h1 className="mt-4 text-2xl font-extrabold tracking-tight">+91 {user.phone}</h1>
-            <p className="mt-1 text-sm text-primary-foreground/85">{user.name}</p>
+            <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-accent-foreground">+91 {user.phone}</h1>
+            <p className="mt-1 text-sm text-accent-foreground/75">{user.name}</p>
           </section>
 
           {/* Saved passengers */}

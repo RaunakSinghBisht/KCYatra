@@ -13,7 +13,7 @@ export function DashboardTabBar() {
   return (
     <nav
       aria-label="Dashboard sections"
-      className="fixed inset-x-0 bottom-0 z-50 bg-gradient-primary pb-[env(safe-area-inset-bottom)] shadow-glow"
+      className="fixed inset-x-0 bottom-0 z-50 bg-gradient-primary pb-[env(safe-area-inset-bottom)] shadow-glow lg:hidden"
     >
       <ul className="mx-auto grid max-w-6xl grid-cols-4">
         {tabs.map((t) => (
