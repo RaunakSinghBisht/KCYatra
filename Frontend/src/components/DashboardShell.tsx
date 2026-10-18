@@ -12,8 +12,8 @@ const tabs = [
 ] as const;
 
 const contacts = [
-  { href: "mailto:krishna.con.yatra@gmail.com", icon: Mail, label: "Email" },
-  { href: "tel:+917020391800", icon: Phone, label: "Phone" },
+  { href: "mailto:krishna.con.yatra@gmail.com", icon: Mail, label: "krishna.con.yatra@gmail.com" },
+  { href: "tel:+917020391800", icon: Phone, label: "+91 70203 91800" },
   { href: "https://wa.me/918796976009", icon: MessageCircle, label: "WhatsApp" },
 ] as const;
 
@@ -72,7 +72,7 @@ export function DashboardShell({ children }: { children: (user: NonNullable<Retu
                 <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-gradient-primary text-primary-foreground shadow-glow">
                   <c.icon className="size-3.5" />
                 </span>
-                <span>{c.label}</span>
+                <span className="truncate text-xs text-muted-foreground/70">{c.label}</span>
               </a>
             ))}
           </div>

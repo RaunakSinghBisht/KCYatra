@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Compass, Loader2 } from "lucide-react";
+import { Compass, Loader2, MessageCircle } from "lucide-react";
 import { DashboardShell } from "@/components/DashboardShell";
 import { BASE_URL } from "@/lib/api";
 import { toast } from "sonner";
@@ -32,6 +32,7 @@ type Yatra = {
   status: string;      // "upcoming" | "open" | "close"
   description: string | null;
   whatsapp_group_link: string | null;
+  allow_whatsapp_before_payment: boolean;
   hotel_packages: { title: string; price: number }[] | null;
   travel_packages: { title: string; price: number }[] | null;
   created_at: string;
@@ -126,11 +127,22 @@ function SelectYatra() {
                     <p className="mt-1 text-xs text-muted-foreground/70">
                       {formatDateRange(y.start_date, y.end_date)}
                     </p>
-                    <div className="mt-auto pt-4">
+                    <div className="mt-auto flex gap-2 pt-4">
+                      {y.whatsapp_group_link && y.allow_whatsapp_before_payment && (
+                        <a
+                          href={y.whatsapp_group_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#25D366] px-2 py-2 text-xs font-bold text-white shadow transition-opacity hover:opacity-90 active:scale-95"
+                        >
+                          <MessageCircle className="size-4 fill-white stroke-none shrink-0" />
+                          <span>Join WhatsApp</span>
+                        </a>
+                      )}
                       <Button
                         asChild
                         size="sm"
-                        className="w-full bg-gradient-primary font-bold shadow-glow"
+                        className="flex-1 bg-gradient-primary font-bold shadow-glow"
                         disabled={y.status === "closed"}
                       >
                         <Link to="/book/$id" params={{ id: String(y.id) }}>

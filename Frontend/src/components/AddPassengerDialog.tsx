@@ -61,7 +61,7 @@ export function AddPassengerDialog({ trigger, userId, passenger, onSuccess }: Pr
   const [district, setDistrict] = useState(passenger?.district ?? "");
   const [city, setCity] = useState(passenger?.city ?? "");
   const [phone, setPhone] = useState(passenger?.phone_no ?? "");
-  const [showAssistanceInfo, setShowAssistanceInfo] = useState(false);
+  const [showAssistancePopup, setShowAssistancePopup] = useState(false);
 
   const districtOptions = useMemo(
     () => (state ? (states[state] ?? []).map((d) => ({ value: d, label: d })) : []),
@@ -209,18 +209,35 @@ export function AddPassengerDialog({ trigger, userId, passenger, onSuccess }: Pr
               </SelectContent>
             </Select>
 
-            {/* Click-toggle info for Special Assistance */}
-            <button
-              type="button"
-              onClick={() => setShowAssistanceInfo((v) => !v)}
-              className="w-fit text-xs font-semibold text-primary underline underline-offset-2"
-            >
-              Know about Special Assistance ?
-            </button>
-            {showAssistanceInfo && (
-              <div className="rounded-2xl border border-border bg-card p-3.5 text-xs leading-relaxed text-foreground shadow-soft">
-                If you have a long-term medical condition or physical limitation and would like a personal assistant to support you throughout the yatra, please select{" "}
-                <strong>"REQUIRED"</strong>. We are here to ensure your journey is comfortable, safe, and as smooth as possible. 🙏
+            {/* Info link — opens popup */}
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowAssistancePopup(true)}
+                className="cursor-pointer text-xs font-semibold text-primary underline underline-offset-2"
+              >
+                Know about Special Assistance ?
+              </button>
+            </div>
+
+            {/* Special Assistance info popup */}
+            {showAssistancePopup && (
+              <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4">
+                <div className="relative w-full max-w-sm rounded-3xl border border-border bg-card p-6 shadow-xl">
+                  <button
+                    type="button"
+                    onClick={() => setShowAssistancePopup(false)}
+                    aria-label="Close"
+                    className="absolute right-4 top-4 grid size-8 place-items-center rounded-full bg-primary text-white shadow transition-transform active:scale-95"
+                  >
+                    <X className="size-4" strokeWidth={3} />
+                  </button>
+                  <h3 className="mb-3 pr-8 text-base font-extrabold text-foreground">Special Assistance</h3>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    If you have a long-term medical condition or physical limitation and would like a personal assistant to support you throughout the yatra, please select{" "}
+                    <strong className="text-foreground">"REQUIRED"</strong>. We are here to ensure your journey is comfortable, safe, and as smooth as possible. 🙏
+                  </p>
+                </div>
               </div>
             )}
 

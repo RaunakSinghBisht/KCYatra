@@ -24,6 +24,7 @@ class YatraCreate(BaseModel):
     travel_packages: list[TravelPackage] | None = None
     description: str | None = None
     whatsapp_group_link: str | None = None
+    allow_whatsapp_before_payment: bool = False
     status: str = "upcoming"
 
     @field_validator("title")
@@ -68,6 +69,7 @@ class YatraUpdate(BaseModel):
     travel_packages: Optional[list[TravelPackage]] = None
     description: Optional[str] = None
     whatsapp_group_link: Optional[str] = None
+    allow_whatsapp_before_payment: Optional[bool] = None
     status: Optional[str] = None
 
     @field_validator("title")
@@ -111,5 +113,6 @@ class YatraResponse(BaseModel):
     travel_packages: list[TravelPackage] | None
     description: str | None
     whatsapp_group_link: str | None
+    allow_whatsapp_before_payment: bool
     status: str
     created_at: datetime

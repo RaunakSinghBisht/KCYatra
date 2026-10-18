@@ -34,6 +34,7 @@ type Yatra = {
   hotel_packages: Package[] | null;
   travel_packages: Package[] | null;
   status: string;
+  whatsapp_group_link: string | null;
 };
 
 type Passenger = {
@@ -69,18 +70,74 @@ function genderInitial(g: string) {
   return g === "male" ? "M" : g === "female" ? "F" : "O";
 }
 
-// Load Razorpay checkout script once and return a promise
+// ── Razorpay checkout ─────────────────────────────────────────────────────────
+
+type RazorpaySuccess = {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+};
+
+type RazorpayFailure = { error?: { description?: string; metadata?: { payment_id?: string } } };
+
+type RazorpayInstance = {
+  open: () => void;
+  on: (event: "payment.failed", cb: (response: RazorpayFailure) => void) => void;
+};
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: Record<string, unknown>) => RazorpayInstance;
+  }
+}
+
+type CreateOrderResult = {
+  order_id: string;
+  amount: number;
+  currency: string;
+  key_id: string;
+  is_free: boolean;
+};
+
+let razorpayScriptPromise: Promise<boolean> | null = null;
+
+// Cached: safe to call many times (preload on mount, again on click) without duplicate <script> tags.
 function loadRazorpayScript(): Promise<boolean> {
-  return new Promise((resolve) => {
-    if ((window as unknown as Record<string, unknown>)["Razorpay"]) {
-      resolve(true);
-      return;
-    }
+  if (window.Razorpay) return Promise.resolve(true);
+  if (razorpayScriptPromise) return razorpayScriptPromise;
+
+  razorpayScriptPromise = new Promise<boolean>((resolve) => {
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
     script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
+    script.onerror = () => {
+      script.remove();
+      razorpayScriptPromise = null; // allow a retry on the next click
+      resolve(false);
+    };
     document.body.appendChild(script);
+  });
+  return razorpayScriptPromise;
+}
+
+/**
+ * A modal Radix Sheet sets `pointer-events: none` on <body> and traps focus until its exit
+ * animation finishes. Razorpay's iframe lives in <body> OUTSIDE the sheet, so opening it
+ * while the sheet is still mounted leaves it unclickable. Wait for Radix to let go first.
+ */
+function waitForBodyInteractive(timeoutMs = 1500): Promise<void> {
+  return new Promise((resolve) => {
+    const start = performance.now();
+    const check = () => {
+      if (document.body.style.pointerEvents !== "none" || performance.now() - start > timeoutMs) {
+        document.body.style.pointerEvents = "";
+        resolve();
+        return;
+      }
+      requestAnimationFrame(check);
+    };
+    check();
   });
 }
 
@@ -194,10 +251,10 @@ function OptionRow({
                 disabled && "cursor-not-allowed",
               )}
             >
-              <span className="block text-sm font-semibold">{o.key}</span>
+              <span className="block pr-2 text-sm font-semibold leading-tight">{o.key}</span>
               <span
                 className={cn(
-                  "absolute right-3 top-2 text-xs font-semibold",
+                  "mt-1 block text-xs font-semibold",
                   selected === o.key ? "text-primary-foreground/80" : "text-muted-foreground/60",
                 )}
               >
@@ -224,8 +281,10 @@ function PaymentDialog({
   travelOptions,
   yatraId,
   userId,
+  userPhone,
   regIds,
   yatraStartYear,
+  whatsappGroupLink,
   onSaved,
   onPaid,
 }: {
@@ -238,15 +297,24 @@ function PaymentDialog({
   travelOptions: { key: string; price: number }[];
   yatraId: number;
   userId: number;
+  userPhone: string;
   regIds: Record<number, number>;
   yatraStartYear: number;
+  whatsappGroupLink: string | null;
   onSaved: (savedRegIds: Record<number, number>) => void;
   onPaid: (paidRegIds: number[]) => void;
 }) {
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
   const [saving, setSaving] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [activeMethod, setActiveMethod] = useState<"cash" | "online" | null>(null);
+  // Synchronous double-click guard (state updates are async, a ref is not)
+  const payingRef = useRef(false);
+
+  function openWhatsAppGroup() {
+    if (whatsappGroupLink) window.open(whatsappGroupLink, "_blank", "noopener,noreferrer");
+  }
 
   const rows = useMemo(
     () =>
@@ -291,52 +359,134 @@ function PaymentDialog({
   };
 
   // ── Pay Now: save (all sel, not just checked) → Razorpay ──────────────────
-  async function handlePayOnline() {
-    if (checkedIds.size === 0) return;
-    setActiveMethod("online");
+  // Confirm a successful Razorpay payment with the backend. The customer has ALREADY been
+  // charged at this point, so transient failures are retried and never silently swallowed.
+  async function confirmPayment(response: RazorpaySuccess) {
+    const body = JSON.stringify(response);
+    const paymentId = response.razorpay_payment_id;
 
-    setSaving(true);
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const res = await fetch(`${BASE_URL}/payments/verify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+        });
 
-    // Save ALL passengers with both packages selected (not just checked ones).
-    // This ensures regIds is fully up-to-date before building the Razorpay order.
-    const newRegIds = await saveSelectionsToDB(
-      sel,
-      paidIds,
-      regIds,
-      userId,
-      yatraId,
-      hotelOptions,
-      travelOptions,
-      false, // show errors via toast
-    );
-    onSaved(newRegIds);
-
-    setSaving(false);
-
-    // Build registration IDs list for only the CHECKED passengers
-    const selectedRegIds: number[] = [];
-    for (const passengerId of checkedIds) {
-      if (paidIds.has(passengerId)) continue;
-      const regId = newRegIds[passengerId];
-      if (!regId) continue;
-      const r = rows.find((x) => x.id === passengerId);
-      if (!r || !r.isSelectable) continue;
-      selectedRegIds.push(regId);
+        if (res.ok) {
+          const data = await res.json();
+          toast.success(`Payment successful! ${data.paid_registration_ids.length} registration(s) confirmed.`);
+          onPaid(data.paid_registration_ids);
+          setCheckedIds(new Set());
+          openWhatsAppGroup();
+          return;
+        }
+        if (res.status < 500) {
+          const err = await res.json().catch(() => ({}));
+          toast.error(`${err.detail ?? "Payment verification failed."} Payment ID: ${paymentId}`, { duration: 60000 });
+          return;
+        }
+      } catch {
+        // network error — retry below
+      }
+      await new Promise((r) => setTimeout(r, attempt * 1500));
     }
 
-    if (selectedRegIds.length === 0) return;
+    toast.error(
+      `We received your payment but could not confirm it yet. It will be confirmed automatically — if not, contact support with Payment ID: ${paymentId}`,
+      { duration: 60000 },
+    );
+  }
 
-    setPaying(true);
+  // Open Razorpay checkout. Resolves once the checkout flow has fully finished.
+  function openCheckout(order: CreateOrderResult): Promise<void> {
+    return new Promise<void>((resolve) => {
+      if (!window.Razorpay) {
+        toast.error("Payment gateway is unavailable. Please refresh and try again.");
+        resolve();
+        return;
+      }
+
+      const rzp = new window.Razorpay({
+        key: order.key_id,
+        amount: order.amount,
+        currency: order.currency,
+        order_id: order.order_id,
+        name: "Krishna Conscious Yatra",
+        description: "Yatra Registration Payment",
+        theme: { color: "#f97316" },
+        prefill: { contact: userPhone },
+        retry: { enabled: true, max_count: 3 },
+        modal: {
+          escape: false,
+          backdropclose: false,
+          confirm_close: true,
+          ondismiss: () => {
+            toast.info("Payment cancelled.");
+            onOpenChange(true); // bring the selection sheet back so the user can retry
+            resolve();
+          },
+        },
+        handler: async (response: RazorpaySuccess) => {
+          setVerifying(true);
+          await confirmPayment(response);
+          resolve();
+        },
+      });
+
+      rzp.on("payment.failed", (resp) => {
+        toast.error(resp.error?.description ?? "Payment failed. Please try again.");
+      });
+
+      // Close our modal sheet first, then open Razorpay once Radix has released the page.
+      onOpenChange(false);
+      void waitForBodyInteractive().then(() => rzp.open());
+    });
+  }
+
+  async function handlePayOnline() {
+    if (checkedIds.size === 0 || payingRef.current) return;
+    payingRef.current = true;
+    setActiveMethod("online");
+    setSaving(true);
 
     try {
-      // Load Razorpay script
-      const loaded = await loadRazorpayScript();
-      if (!loaded) {
+      // Save ALL passengers with both packages selected (not just checked ones) so regIds is
+      // fully up to date before the order is built.
+      const newRegIds = await saveSelectionsToDB(
+        sel,
+        paidIds,
+        regIds,
+        userId,
+        yatraId,
+        hotelOptions,
+        travelOptions,
+        false, // show errors via toast
+      );
+      onSaved(newRegIds);
+      setSaving(false);
+
+      // Registration IDs for only the CHECKED passengers
+      const selectedRegIds: number[] = [];
+      for (const passengerId of checkedIds) {
+        if (paidIds.has(passengerId)) continue;
+        const regId = newRegIds[passengerId];
+        if (!regId) continue;
+        const r = rows.find((x) => x.id === passengerId);
+        if (!r || !r.isSelectable) continue;
+        selectedRegIds.push(regId);
+      }
+      if (selectedRegIds.length === 0) return;
+
+      setPaying(true);
+
+      const scriptReady = await loadRazorpayScript();
+      if (!scriptReady) {
         toast.error("Failed to load payment gateway. Check your internet connection.");
         return;
       }
 
-      // Create order on backend — amounts are computed server-side from DB
+      // Amounts are computed server-side from DB — the client never sends a price.
       const orderRes = await fetch(`${BASE_URL}/payments/create-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -347,94 +497,36 @@ function PaymentDialog({
         toast.error(err.detail ?? "Could not create payment order.");
         return;
       }
-      const orderData = await orderRes.json();
+      const order: CreateOrderResult = await orderRes.json();
 
-      if (orderData.order_id === "FREE_ORDER") {
-        // Bypass razorpay and verify immediately
-        const verifyRes = await fetch(`${BASE_URL}/payments/verify`, {
+      if (order.is_free) {
+        const freeRes = await fetch(`${BASE_URL}/payments/confirm-free`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            razorpay_order_id: "FREE_ORDER",
-            razorpay_payment_id: "FREE_PAYMENT",
-            razorpay_signature: "FREE_SIGNATURE",
-            registration_ids: selectedRegIds,
-          }),
+          body: JSON.stringify({ order_id: order.order_id }),
         });
-
-        if (!verifyRes.ok) {
-          const err = await verifyRes.json().catch(() => ({}));
+        if (!freeRes.ok) {
+          const err = await freeRes.json().catch(() => ({}));
           toast.error(err.detail ?? "Failed to confirm free registration.");
           return;
         }
-
-        const verifyData = await verifyRes.json();
-        toast.success(`Registration successful! ${verifyData.paid_registration_ids.length} registration(s) confirmed.`);
-        onPaid(verifyData.paid_registration_ids);
+        const data = await freeRes.json();
+        toast.success(`Registration successful! ${data.paid_registration_ids.length} registration(s) confirmed.`);
+        onPaid(data.paid_registration_ids);
         setCheckedIds(new Set());
         onOpenChange(false);
+        openWhatsAppGroup();
         return;
       }
 
-      // Open Razorpay checkout
-      await new Promise<void>((resolve, reject) => {
-        const options = {
-          key: orderData.key_id,
-          amount: orderData.amount,
-          currency: orderData.currency,
-          order_id: orderData.order_id,
-          name: "Krishna Conscious Yatra",
-          description: "Yatra Registration Payment",
-          theme: { color: "#f97316" },
-          handler: async (response: {
-            razorpay_order_id: string;
-            razorpay_payment_id: string;
-            razorpay_signature: string;
-          }) => {
-            try {
-              const verifyRes = await fetch(`${BASE_URL}/payments/verify`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_signature: response.razorpay_signature,
-                  registration_ids: selectedRegIds,
-                }),
-              });
-
-              if (!verifyRes.ok) {
-                const err = await verifyRes.json().catch(() => ({}));
-                toast.error(err.detail ?? "Payment verification failed. Contact support.");
-                reject(new Error("verify failed"));
-                return;
-              }
-
-              const verifyData = await verifyRes.json();
-              toast.success(`Payment successful! ${verifyData.paid_registration_ids.length} registration(s) confirmed.`);
-              onPaid(verifyData.paid_registration_ids);
-              setCheckedIds(new Set());
-              onOpenChange(false);
-              resolve();
-            } catch (err) {
-              reject(err);
-            }
-          },
-          modal: {
-            ondismiss: () => {
-              toast.info("Payment cancelled.");
-              resolve();
-            },
-          },
-        };
-
-        const rzp = new (window as any).Razorpay(options);
-        rzp.open();
-      });
+      await openCheckout(order);
     } catch {
-      // errors already toasted
+      toast.error("Something went wrong. Please check your connection and try again.");
     } finally {
+      payingRef.current = false;
+      setSaving(false);
       setPaying(false);
+      setVerifying(false);
       setActiveMethod(null);
     }
   }
@@ -491,6 +583,7 @@ function PaymentDialog({
       onPaid(selectedRegIds); // this adds them to paidIds locally
       setCheckedIds(new Set());
       onOpenChange(false);
+      openWhatsAppGroup();
     } catch {
       toast.error("Network error. Please try again.");
     } finally {
@@ -503,7 +596,8 @@ function PaymentDialog({
   const isBusy = saving || paying;
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <>
+    <Sheet open={open} onOpenChange={(v) => { if (!v && isBusy) return; onOpenChange(v); }}>
       <SheetContent
         side="bottom"
         className="bottom-0 left-4 right-4 mx-auto max-w-lg gap-0 overflow-hidden rounded-t-3xl border-0 p-0 sm:rounded-3xl [&>button]:hidden"
@@ -513,7 +607,8 @@ function PaymentDialog({
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="absolute right-5 top-4 grid size-10 place-items-center rounded-full border-2 border-primary-foreground bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition hover:bg-primary/90 active:scale-95"
+            disabled={isBusy}
+            className="absolute right-5 top-4 grid size-10 place-items-center rounded-full border-2 border-primary-foreground bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition hover:bg-primary/90 active:scale-95 disabled:opacity-60"
             aria-label="Close"
           >
             <X className="size-5" strokeWidth={3} />
@@ -605,6 +700,22 @@ function PaymentDialog({
         </div>
       </SheetContent>
     </Sheet>
+
+    {/* Shown while the sheet is closed but checkout is launching / payment is being confirmed.
+        Blocks stray clicks on the page; Razorpay's own iframe renders above it. */}
+    {paying && !open && (
+      <div
+        role="status"
+        aria-live="polite"
+        className="fixed inset-0 z-[60] grid place-items-center bg-black/40"
+      >
+        <div className="flex items-center gap-3 rounded-2xl bg-card px-5 py-4 text-sm font-semibold shadow-lg">
+          <Loader2 className="size-5 animate-spin text-primary" />
+          {verifying ? "Confirming your payment…" : "Opening secure payment…"}
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -647,6 +758,11 @@ function BookYatra() {
   useEffect(() => { userIdRef.current = user?.user_id ?? 0; }, [user?.user_id]);
   useEffect(() => { yatraIdRef.current = Number(id); }, [id]);
 
+  // Warm up Razorpay's checkout script now so clicking "Pay Online" never waits on the network
+  useEffect(() => {
+    void loadRazorpayScript();
+  }, []);
+
   // Fetch site settings to check if payments are enabled
   useEffect(() => {
     fetch(`${BASE_URL}/dam-page/`)
@@ -660,9 +776,12 @@ function BookYatra() {
     async function load() {
       setLoading(true);
       try {
-        const [yatraRes, passengerRes] = await Promise.all([
+        const uid = user?.user_id ?? 0;
+        const [yatraRes, passengerRes, deletedRegsRes] = await Promise.all([
           fetch(`${BASE_URL}/yatras/${id}`),
-          fetch(`${BASE_URL}/passengers/user/${user?.user_id ?? 0}`),
+          fetch(`${BASE_URL}/passengers/user/${uid}`),
+          // Fetch all registrations for this user+yatra (includes soft-deleted passengers)
+          fetch(`${BASE_URL}/registrations/by-user-yatra?user_id=${uid}&yatra_id=${id}`),
         ]);
 
         if (!yatraRes.ok) throw new Error(`Yatra not found (${yatraRes.status})`);
@@ -673,49 +792,78 @@ function BookYatra() {
           passengerRes.json() as Promise<Passenger[]>,
         ]);
 
+        // Registrations that include soft-deleted passengers
+        type RegWithPax = {
+          id: number; passenger_id: number;
+          hotel_package: string | null; travel_package: string | null;
+          payment_status: string;
+          passenger: { id: number; full_name: string; gender: string; year_of_birth: number; is_deleted: boolean };
+        };
+        const allRegs: RegWithPax[] = deletedRegsRes.ok ? await deletedRegsRes.json() : [];
+
+        // Merge: add soft-deleted passengers that have registrations but aren't in the active list
+        const activeIds = new Set(passengerData.map((p) => p.id));
+        const extraPassengers: Passenger[] = [];
+        for (const r of allRegs) {
+          if (r.passenger.is_deleted && !activeIds.has(r.passenger.id)) {
+            extraPassengers.push({
+              id: r.passenger.id,
+              full_name: r.passenger.full_name,
+              gender: r.passenger.gender as Passenger["gender"],
+              year_of_birth: r.passenger.year_of_birth,
+            });
+            activeIds.add(r.passenger.id);
+          }
+        }
+
+        const mergedPassengers = [...passengerData, ...extraPassengers];
         setYatra(yatraData);
-        setPassengers(passengerData);
+        setPassengers(mergedPassengers);
 
         // Cache options in refs for cleanup save
         hotelOptionsRef.current = (yatraData.hotel_packages ?? []).map((p) => ({ key: p.title, price: p.price }));
         travelOptionsRef.current = (yatraData.travel_packages ?? []).map((p) => ({ key: p.title, price: p.price }));
 
+        // Build a map from passenger_id → registration from the by-user-yatra response
+        const regByPax = new Map(allRegs.map((r) => [r.passenger_id, r]));
+
+        // For active (non-deleted) passengers not yet in allRegs, do individual lookups
+        const needLookup = passengerData.filter((p) => !regByPax.has(p.id));
         const lookups = await Promise.all(
-          passengerData.map((p) =>
+          needLookup.map((p) =>
             fetch(`${BASE_URL}/registrations/lookup?passenger_id=${p.id}&yatra_id=${id}`)
               .then((r) => (r.ok ? r.json() : null))
               .catch(() => null),
           ),
         );
+        lookups.forEach((reg, i) => {
+          const pax = needLookup[i];
+          if (reg?.id && pax) regByPax.set(pax.id, reg);
+        });
 
         const ids: Record<number, number> = {};
         const revIds: Record<number, number> = {};
         const alreadyPaid = new Set<number>();
-
-        // Change 1: Pre-fill sel from existing pending registrations
         const prefilled: Record<number, Selection> = {};
 
-        lookups.forEach((reg, i) => {
-          const pax = passengerData[i];
-          if (reg?.id) {
-            ids[pax.id] = reg.id;
-            revIds[reg.id] = pax.id;
-
-            if (reg.payment_status === "paid") {
-              alreadyPaid.add(pax.id);
-            } else {
-              // Pre-fill selections for pending registrations
-              const hotelTitle = parsePkgTitle(reg.hotel_package);
-              const travelTitle = parsePkgTitle(reg.travel_package);
-              if (hotelTitle || travelTitle) {
-                prefilled[pax.id] = {
-                  ...(hotelTitle ? { hotel: hotelTitle } : {}),
-                  ...(travelTitle ? { travel: travelTitle } : {}),
-                };
-              }
+        for (const pax of mergedPassengers) {
+          const reg = regByPax.get(pax.id);
+          if (!reg?.id) continue;
+          ids[pax.id] = reg.id;
+          revIds[reg.id] = pax.id;
+          if (reg.payment_status === "paid") {
+            alreadyPaid.add(pax.id);
+          } else {
+            const hotelTitle = parsePkgTitle(reg.hotel_package);
+            const travelTitle = parsePkgTitle(reg.travel_package);
+            if (hotelTitle || travelTitle) {
+              prefilled[pax.id] = {
+                ...(hotelTitle ? { hotel: hotelTitle } : {}),
+                ...(travelTitle ? { travel: travelTitle } : {}),
+              };
             }
           }
-        });
+        }
 
         setRegIds(ids);
         setRegToPax(revIds);
@@ -922,7 +1070,7 @@ function BookYatra() {
           return (
             <section key={p.id} className="bg-card px-4 py-4 shadow-soft sm:rounded-2xl">
               <div className="flex flex-wrap items-start justify-between gap-x-3">
-                <h2 className="text-base font-extrabold">Passenger ID: {p.id}</h2>
+                <h2 className="text-base font-extrabold">ID: PSG{p.id}</h2>
                 <p className="text-sm font-extrabold">
                   Status:{" "}
                   <span
@@ -945,7 +1093,7 @@ function BookYatra() {
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {new Date(yatra.start_date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}{" "}
-                  <span className="font-bold text-foreground">to</span>{" "}
+                  <span className="text-muted-foreground">to</span>{" "}
                   {new Date(yatra.end_date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
                 </p>
               </div>
@@ -1009,8 +1157,10 @@ function BookYatra() {
         travelOptions={travelOptions}
         yatraId={yatra.id}
         userId={user?.user_id ?? 0}
+        userPhone={user?.phone ?? ""}
         regIds={regIds}
         yatraStartYear={new Date(yatra.start_date).getFullYear()}
+        whatsappGroupLink={yatra.whatsapp_group_link ?? null}
         onSaved={handleSaved}
         onPaid={handlePaid}
       />

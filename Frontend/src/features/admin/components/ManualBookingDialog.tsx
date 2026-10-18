@@ -15,6 +15,7 @@ type Passenger = {
   full_name: string;
   gender: string;
   year_of_birth: number;
+  phone_no: string | null;
 };
 
 type HotelPkg = { title: string; price: number };
@@ -215,7 +216,7 @@ export function ManualBookingDialog({ onCreated }: { onCreated: () => void }) {
                 <SelectItem value="__none__">— New passenger —</SelectItem>
                 {availablePassengers.map((p) => (
                   <SelectItem key={p.id} value={String(p.id)}>
-                    {p.full_name} · {new Date().getFullYear() - p.year_of_birth} · {p.gender}
+                    {p.full_name}{p.phone_no ? ` · ${p.phone_no}` : " · No phone"}
                   </SelectItem>
                 ))}
               </SelectContent>

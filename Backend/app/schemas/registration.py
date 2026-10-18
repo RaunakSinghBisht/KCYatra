@@ -70,6 +70,35 @@ class AdminRegistrationResponse(BaseModel):
     user_phone: str | None
 
 
+class PassengerSnapshot(BaseModel):
+    """Minimal passenger data embedded in a registration — works even for soft-deleted passengers."""
+    id: int
+    full_name: str
+    gender: str
+    year_of_birth: int
+    is_deleted: bool
+    special_assistance: str
+    state: str | None
+    district: str | None
+    city: str | None
+    phone_no: str | None
+
+
+class RegistrationWithPassengerResponse(BaseModel):
+    """Registration row + embedded passenger — used to surface soft-deleted passengers that have bookings."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    passenger_id: int
+    hotel_package: str | None
+    travel_package: str | None
+    payment_status: str
+    amount_paid: Decimal
+    payment_method: str | None
+    transaction_id: str | None
+    passenger: PassengerSnapshot
+
+
 class AdminManualBookingCreate(BaseModel):
     """Admin manual booking — create passenger (if needed) + registration in one call."""
     passenger_id: int | None = None

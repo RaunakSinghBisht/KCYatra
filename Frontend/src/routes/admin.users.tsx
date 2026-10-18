@@ -427,7 +427,7 @@ function AdminUsers() {
                   <div className="min-w-0">
                     <p className="truncate text-base font-extrabold">{p.full_name}</p>
                     <p className="text-xs text-muted-foreground">
-                      User ID : KCY{p.id}
+                      ID : PSG{p.id}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -472,8 +472,8 @@ function AdminUsers() {
                   <Cell label="District" value={p.district || "—"} />
                   <Cell label="City" value={p.city || "—"} />
                   <Cell
-                    label="Status"
-                    value={p.is_deleted ? "Soft Deleted" : "Active"}
+                    label="Is Deleted"
+                    value={p.is_deleted ? "True" : "False"}
                   />
                 </dl>
               </article>
@@ -500,7 +500,7 @@ function AdminUsers() {
           <DialogHeader>
             <DialogTitle>Edit Passenger</DialogTitle>
             <DialogDescription>
-              User ID : KCY{editing?.id}
+              ID : PSG{editing?.id}
             </DialogDescription>
           </DialogHeader>
 
@@ -657,8 +657,7 @@ function AdminUsers() {
             <AlertDialogTitle>Delete passenger record?</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete{" "}
-              <strong className="text-foreground">{deletingPassenger?.full_name}</strong> (User ID : KCY
-              {deletingPassenger?.id})? This will perform a safe soft-delete so past registration
+              <strong className="text-foreground">{deletingPassenger?.full_name}</strong> (ID : PSG{deletingPassenger?.id})? This will perform a safe soft-delete so past registration
               and booking history remains intact.
             </AlertDialogDescription>
           </AlertDialogHeader>

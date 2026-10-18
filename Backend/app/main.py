@@ -15,6 +15,7 @@ from app.models.notice import Notice  # noqa: F401
 from app.models.carousel import CarouselImage  # noqa: F401
 from app.models.youtube_link import YouTubeLink  # noqa: F401
 from app.models.dam_page import DamPage  # noqa: F401
+from app.models.payment_order import PaymentOrder  # noqa: F401
 
 from app.routers import user as user_router
 from app.routers import passenger as passenger_router

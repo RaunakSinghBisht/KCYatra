@@ -1,5 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
+
+from app.models.registration import Registration
+from app.models.passenger import Passenger as PassengerModel
 
 from app.crud.registration import (
     DuplicateRegistrationError,
@@ -29,6 +34,8 @@ from app.schemas.registration import (
     RegistrationPackageUpdate,
     RegistrationResponse,
     RegistrationCashRequest,
+    RegistrationWithPassengerResponse,
+    PassengerSnapshot,
     BookingResponse,
 )
 
@@ -175,6 +182,54 @@ async def lookup_registration(
     db: AsyncSession = Depends(get_db),
 ) -> RegistrationResponse | None:
     return await get_registration_by_passenger_and_yatra(db, passenger_id, yatra_id)
+
+
+@router.get(
+    "/by-user-yatra",
+    response_model=list[RegistrationWithPassengerResponse],
+    summary="All registrations for a user in a yatra, including soft-deleted passengers",
+)
+async def list_registrations_by_user_yatra(
+    user_id: int = Query(...),
+    yatra_id: int = Query(...),
+    db: AsyncSession = Depends(get_db),
+) -> list[RegistrationWithPassengerResponse]:
+    rows = (
+        await db.execute(
+            select(Registration, PassengerModel)
+            .join(PassengerModel, Registration.passenger_id == PassengerModel.id)
+            .where(
+                Registration.user_id == user_id,
+                Registration.yatra_id == yatra_id,
+            )
+        )
+    ).all()
+
+    return [
+        RegistrationWithPassengerResponse(
+            id=reg.id,
+            passenger_id=reg.passenger_id,
+            hotel_package=reg.hotel_package,
+            travel_package=reg.travel_package,
+            payment_status=reg.payment_status,
+            amount_paid=reg.amount_paid,
+            payment_method=reg.payment_method,
+            transaction_id=reg.transaction_id,
+            passenger=PassengerSnapshot(
+                id=pax.id,
+                full_name=pax.full_name,
+                gender=pax.gender,
+                year_of_birth=pax.year_of_birth,
+                is_deleted=pax.is_deleted,
+                special_assistance=pax.special_assistance,
+                state=pax.state,
+                district=pax.district,
+                city=pax.city,
+                phone_no=pax.phone_no,
+            ),
+        )
+        for reg, pax in rows
+    ]
 
 
 @router.get(

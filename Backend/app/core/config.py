@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     # ── Razorpay ──────────────────────────────────────────────────────────────
     RAZORPAY_API_KEY: str = ""
     RAZORPAY_API_SECRET: str = ""
+    # Set in Razorpay Dashboard → Webhooks (separate from the API secret).
+    RAZORPAY_WEBHOOK_SECRET: str = ""
 
     # ── Yatra Image Storage ───────────────────────────────────────────────────
     YATRA_IMAGE_DIR: str = "../Frontend/public/yatras"

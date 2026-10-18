@@ -101,8 +101,11 @@ const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
 const PAYMENT_STATUSES = ["interested", "paid", "not_paid", "cash"];
 
+type YatraOption = { id: number; title: string };
+
 function AdminBookings() {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [allYatras, setAllYatras] = useState<YatraOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -110,10 +113,17 @@ function AdminBookings() {
 
   const load = async () => {
     try {
-      const res = await fetch(`${BASE_URL}/registrations/`);
-      if (!res.ok) throw new Error(await res.text());
-      const data = (await res.json()) as Record<string, unknown>[];
+      const [regRes, yatraRes] = await Promise.all([
+        fetch(`${BASE_URL}/registrations/`),
+        fetch(`${BASE_URL}/yatras/`),
+      ]);
+      if (!regRes.ok) throw new Error(await regRes.text());
+      const data = (await regRes.json()) as Record<string, unknown>[];
       setRegistrations(data.map(fromApi));
+      if (yatraRes.ok) {
+        const yList = (await yatraRes.json()) as { id: number; title: string }[];
+        setAllYatras(yList.map((y) => ({ id: y.id, title: y.title })).sort((a, b) => a.id - b.id));
+      }
     } catch (err) {
       toast.error("Failed to load registrations");
       console.error(err);
@@ -131,13 +141,12 @@ function AdminBookings() {
         return (
           text.includes(q.toLowerCase()) &&
           (statusFilter === "all" || r.paymentStatus === statusFilter) &&
-          (yatraFilter === "all" || r.yatraTitle === yatraFilter)
+          (yatraFilter === "all" || String(r.yatraId) === yatraFilter)
         );
       }),
     [registrations, q, statusFilter, yatraFilter],
   );
 
-  const yatraNames = Array.from(new Set(registrations.map((r) => r.yatraTitle)));
   const collected = rows.reduce((s, r) => s + r.amountPaid, 0);
   const paidCount = rows.filter((r) => r.paymentStatus === "paid").length;
 
@@ -191,8 +200,8 @@ function AdminBookings() {
           <SelectTrigger><SelectValue placeholder="Yatra" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All yatras</SelectItem>
-            {yatraNames.map((y) => (
-              <SelectItem key={y} value={y}>{y}</SelectItem>
+            {allYatras.map((y) => (
+              <SelectItem key={y.id} value={String(y.id)}>#{y.id} · {y.title}</SelectItem>
             ))}
           </SelectContent>
         </Select>

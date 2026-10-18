@@ -22,6 +22,7 @@ class Yatra(Base):
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     message_for_passengers: Mapped[str | None] = mapped_column(Text, nullable=True)
     whatsapp_group_link: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    allow_whatsapp_before_payment: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="upcoming", nullable=False)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(

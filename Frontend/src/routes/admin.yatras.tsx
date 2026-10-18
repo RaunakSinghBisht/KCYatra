@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { exportCsv, exportExcel } from "@/features/admin/lib/export-records";
 
 export const Route = createFileRoute("/admin/yatras")({
@@ -57,6 +58,7 @@ type YatraRow = {
   travel_packages: TravelPkg[] | null;
   description: string | null;
   whatsapp_group_link: string | null;
+  allow_whatsapp_before_payment: boolean;
   status: YatraStatus;
   created_at?: string;
 };
@@ -67,6 +69,7 @@ type DraftForm = {
   end_date: string;
   description: string;
   whatsapp_group_link: string;
+  allow_whatsapp_before_payment: boolean;
   status: YatraStatus;
   hotel_packages: HotelPkg[];
   travel_packages: TravelPkg[];
@@ -81,6 +84,7 @@ const emptyDraft: DraftForm = {
   end_date: "",
   description: "",
   whatsapp_group_link: "",
+  allow_whatsapp_before_payment: false,
   status: "upcoming",
   hotel_packages: [],
   travel_packages: [],
@@ -101,6 +105,7 @@ async function createYatraApi(draft: DraftForm, imageFile: File | null): Promise
   form.append("status", draft.status);
   if (draft.description) form.append("description", draft.description);
   if (draft.whatsapp_group_link) form.append("whatsapp_group_link", draft.whatsapp_group_link);
+  form.append("allow_whatsapp_before_payment", String(draft.allow_whatsapp_before_payment));
   if (draft.hotel_packages.length) form.append("hotel_packages", JSON.stringify(draft.hotel_packages));
   if (draft.travel_packages.length) form.append("travel_packages", JSON.stringify(draft.travel_packages));
   if (imageFile) form.append("image", imageFile);
@@ -121,6 +126,7 @@ async function updateYatraApi(id: number, draft: DraftForm, imageFile: File | nu
   form.append("status", draft.status);
   form.append("description", draft.description);
   form.append("whatsapp_group_link", draft.whatsapp_group_link);
+  form.append("allow_whatsapp_before_payment", String(draft.allow_whatsapp_before_payment));
   form.append("hotel_packages", JSON.stringify(draft.hotel_packages));
   form.append("travel_packages", JSON.stringify(draft.travel_packages));
   if (imageFile) form.append("image", imageFile);
@@ -213,6 +219,7 @@ function AdminYatras() {
       end_date: y.end_date,
       description: y.description ?? "",
       whatsapp_group_link: y.whatsapp_group_link ?? "",
+      allow_whatsapp_before_payment: y.allow_whatsapp_before_payment ?? false,
       status: y.status,
       hotel_packages: y.hotel_packages ?? [],
       travel_packages: y.travel_packages ?? [],
@@ -411,6 +418,24 @@ function AdminYatras() {
                 rows={draft.travel_packages}
                 onChange={(pkgs) => setDraft({ ...draft, travel_packages: pkgs })}
               />
+
+              {/* WhatsApp join toggle */}
+              <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3">
+                <Checkbox
+                  id="allow_whatsapp"
+                  checked={draft.allow_whatsapp_before_payment}
+                  onCheckedChange={(v) => setDraft({ ...draft, allow_whatsapp_before_payment: Boolean(v) })}
+                  className="mt-0.5"
+                />
+                <div>
+                  <label htmlFor="allow_whatsapp" className="cursor-pointer text-sm font-semibold">
+                    Allow Devotees to Join WhatsApp without Payment
+                  </label>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    When enabled, a "Join WhatsApp" button appears on the Select Yatra page alongside "Book Now" — even before payment.
+                  </p>
+                </div>
+              </div>
 
               <DialogFooter>
                 <Button onClick={save} disabled={isBusy} className="bg-gradient-primary font-bold shadow-glow">
