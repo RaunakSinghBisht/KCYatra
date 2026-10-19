@@ -16,13 +16,13 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { useAdminAuth } from "@/features/admin/lib/admin-auth";
 
 const nav = [
-  { to: "/admin/users", label: "Users", icon: Users },
-  { to: "/admin/bookings", label: "Bookings & Payments", icon: Receipt },
-  { to: "/admin/yatras", label: "Yatra Packages", icon: MountainSnow },
-  { to: "/admin/notices", label: "Notices", icon: Bell },
-  { to: "/admin/carousel", label: "Carousel Manager", icon: Images },
-  { to: "/admin/youtube", label: "YouTube Links", icon: Youtube },
-  { to: "/admin/maintenance", label: "Dam Page", icon: Construction },
+  { to: "/admin224151/users", label: "Users", icon: Users },
+  { to: "/admin224151/bookings", label: "Bookings & Payments", icon: Receipt },
+  { to: "/admin224151/yatras", label: "Yatra Packages", icon: MountainSnow },
+  { to: "/admin224151/notices", label: "Notices", icon: Bell },
+  { to: "/admin224151/carousel", label: "Carousel Manager", icon: Images },
+  { to: "/admin224151/youtube", label: "YouTube Links", icon: Youtube },
+  { to: "/admin224151/maintenance", label: "Dam Page", icon: Construction },
 ] as const;
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
@@ -61,7 +61,7 @@ export function AdminShell({
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (hydrated && !admin) navigate({ to: "/admin/login" });
+    if (hydrated && !admin) navigate({ to: "/admin224151/login" });
   }, [hydrated, admin, navigate]);
 
   if (!hydrated || !admin) {
@@ -130,7 +130,7 @@ function AdminShellInner({
               className="w-full font-semibold text-destructive"
               onClick={() => {
                 signOut();
-                navigate({ to: "/admin/login" });
+                navigate({ to: "/admin224151/login" });
               }}
             >
               <LogOut className="size-4" /> Logout
@@ -158,7 +158,7 @@ function AdminShellInner({
                         onClick={() => {
                           signOut();
                           setOpen(false);
-                          navigate({ to: "/admin/login" });
+                          navigate({ to: "/admin224151/login" });
                         }}
                       >
                         <LogOut className="size-4" /> Logout

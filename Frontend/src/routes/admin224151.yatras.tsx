@@ -27,7 +27,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { exportCsv, exportExcel } from "@/features/admin/lib/export-records";
 
-export const Route = createFileRoute("/admin/yatras")({
+export const Route = createFileRoute("/admin224151/yatras")({
   head: () => ({
     meta: [
       { title: "Manage Yatras — Krishna Conscious Yatra Admin" },

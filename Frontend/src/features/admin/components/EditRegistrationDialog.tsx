@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BASE_URL } from "@/lib/api";
-import type { Registration } from "@/routes/admin.bookings";
+import type { Registration } from "@/routes/admin224151.bookings";
 
 const PAYMENT_STATUSES = ["interested", "paid", "not_paid", "cash"];
 const PAYMENT_METHODS = ["cash", "online"];

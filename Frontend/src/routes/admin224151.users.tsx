@@ -55,7 +55,7 @@ export interface PassengerRecord {
   latest_transaction_id: string | null;
 }
 
-export const Route = createFileRoute("/admin/users")({
+export const Route = createFileRoute("/admin224151/users")({
   head: () => ({
     meta: [
       { title: "Passengers — Krishna Conscious Yatra Admin" },

@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { BASE_URL } from "@/lib/api";
 import { youtubeEmbedUrl } from "@/features/admin/lib/admin-store";
 
-export const Route = createFileRoute("/admin/youtube")({
+export const Route = createFileRoute("/admin224151/youtube")({
   head: () => ({
     meta: [
       { title: "YouTube Links — Krishna Conscious Yatra Admin" },

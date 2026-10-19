@@ -11,7 +11,7 @@ import { EditRegistrationDialog } from "@/features/admin/components/EditRegistra
 import { exportCsv, exportExcel } from "@/features/admin/lib/export-records";
 import { BASE_URL } from "@/lib/api";
 
-export const Route = createFileRoute("/admin/bookings")({
+export const Route = createFileRoute("/admin224151/bookings")({
   head: () => ({
     meta: [
       { title: "Bookings & Payments — Krishna Conscious Yatra Admin" },

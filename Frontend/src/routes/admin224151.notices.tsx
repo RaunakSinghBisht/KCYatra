@@ -30,7 +30,7 @@ import {
 import { exportCsv, exportExcel } from "@/features/admin/lib/export-records";
 import { BASE_URL } from "@/lib/api";
 
-export const Route = createFileRoute("/admin/notices")({
+export const Route = createFileRoute("/admin224151/notices")({
   head: () => ({
     meta: [
       { title: "Notices — Krishna Conscious Yatra Admin" },

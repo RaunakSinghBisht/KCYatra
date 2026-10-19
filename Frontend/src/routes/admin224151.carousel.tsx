@@ -6,7 +6,7 @@ import { AdminShell } from "@/features/admin/components/AdminShell";
 import { Button } from "@/components/ui/button";
 import { BASE_URL } from "@/lib/api";
 
-export const Route = createFileRoute("/admin/carousel")({
+export const Route = createFileRoute("/admin224151/carousel")({
   head: () => ({
     meta: [
       { title: "Carousel Manager — Krishna Conscious Yatra Admin" },

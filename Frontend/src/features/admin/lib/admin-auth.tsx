@@ -1,20 +1,14 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { BASE_URL } from "@/lib/api";
 
 export type AdminSession = { email: string; name: string; role: string };
 
 const STORAGE_KEY = "kcy-admin-session";
 
-export const DEMO_ADMIN = {
-  email: "admin@krishnaconsciousyatra.com",
-  password: "yatra@123",
-  name: "Yatra Admin",
-  role: "Super Admin",
-};
-
 type State = {
   admin: AdminSession | null;
   hydrated: boolean;
-  signIn: (email: string, password: string) => boolean;
+  signIn: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   signOut: () => void;
 };
 
@@ -38,12 +32,24 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     () => ({
       admin,
       hydrated,
-      signIn: (email, password) => {
-        if (email.trim().toLowerCase() !== DEMO_ADMIN.email || password !== DEMO_ADMIN.password) return false;
-        const session = { email: DEMO_ADMIN.email, name: DEMO_ADMIN.name, role: DEMO_ADMIN.role };
-        setAdmin(session);
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-        return true;
+      signIn: async (email, password) => {
+        try {
+          const res = await fetch(`${BASE_URL}/admin/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            return { ok: false, error: err.detail ?? "Invalid admin credentials" };
+          }
+          const session = (await res.json()) as AdminSession;
+          setAdmin(session);
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+          return { ok: true };
+        } catch {
+          return { ok: false, error: "Network error — check your connection and try again." };
+        }
       },
       signOut: () => {
         setAdmin(null);

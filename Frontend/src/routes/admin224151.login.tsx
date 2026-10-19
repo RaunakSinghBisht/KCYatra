@@ -5,9 +5,9 @@ import { ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DEMO_ADMIN, useAdminAuth } from "@/features/admin/lib/admin-auth";
+import { useAdminAuth } from "@/features/admin/lib/admin-auth";
 
-export const Route = createFileRoute("/admin/login")({
+export const Route = createFileRoute("/admin224151/login")({
   head: () => ({
     meta: [
       { title: "Admin Login — Krishna Conscious Yatra" },
@@ -25,17 +25,22 @@ function AdminLogin() {
   const { admin, signIn } = useAdminAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (admin) navigate({ to: "/admin/users" });
+    if (admin) navigate({ to: "/admin224151/users" });
   }, [admin, navigate]);
 
-  const submit = () => {
-    if (signIn(email, password)) {
+  const submit = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    const result = await signIn(email, password);
+    setSubmitting(false);
+    if (result.ok) {
       toast.success("Welcome back, admin");
-      navigate({ to: "/admin/users" });
+      navigate({ to: "/admin224151/users" });
     } else {
-      toast.error("Invalid admin credentials");
+      toast.error(result.error ?? "Invalid admin credentials");
     }
   };
 
@@ -58,7 +63,7 @@ function AdminLogin() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@krishnaconsciousyatra.com"
+              placeholder="Admin email"
               className="h-12"
             />
           </div>
@@ -74,12 +79,9 @@ function AdminLogin() {
               className="h-12"
             />
           </div>
-          <Button onClick={submit} size="lg" className="w-full bg-gradient-primary font-bold shadow-glow">
-            Sign in to Admin Panel
+          <Button onClick={submit} disabled={submitting} size="lg" className="w-full bg-gradient-primary font-bold shadow-glow">
+            {submitting ? "Signing in…" : "Sign in to Admin Panel"}
           </Button>
-          <p className="rounded-xl bg-muted p-3 text-center text-xs text-muted-foreground">
-            Demo credentials — {DEMO_ADMIN.email} / {DEMO_ADMIN.password}
-          </p>
         </div>
       </div>
     </main>

@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { BASE_URL } from "@/lib/api";
 
-export const Route = createFileRoute("/admin/maintenance")({
+export const Route = createFileRoute("/admin224151/maintenance")({
   head: () => ({
     meta: [
       { title: "Dam Page — Krishna Conscious Yatra Admin" },
