@@ -11,6 +11,13 @@ class Settings(BaseSettings):
     ENV: str = "development"
     DEBUG: bool = True
 
+    # Allowed browser origins, e.g. CORS_ORIGINS=["https://yourdomain.com"] in .env
+    CORS_ORIGINS: list[str] = []
+
+    # Admin panel login. Empty = admin login disabled (no default password).
+    ADMIN_EMAIL: str = ""
+    ADMIN_PASSWORD: str = ""
+
     # ── Fast2SMS ──────────────────────────────────────────────────────────────
     FAST2SMS_API_KEY: str = ""
     FAST2SMS_SENDER_ID: str = "GMDTRX"

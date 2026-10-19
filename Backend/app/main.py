@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.config import settings
 from app.db.base import Base
 from app.db.session import engine
 
@@ -27,6 +28,7 @@ from app.routers import notice as notice_router
 from app.routers import carousel as carousel_router
 from app.routers import youtube_link as youtube_link_router
 from app.routers import dam_page as dam_page_router
+from app.routers import admin_auth as admin_auth_router
 
 
 @asynccontextmanager
@@ -49,14 +51,13 @@ app = FastAPI(
 # ── CORS ──────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8080",
-        "http://localhost:8081",
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=settings.CORS_ORIGINS,
+    # localhost / LAN access only outside production
+    allow_origin_regex=(
+        None
+        if settings.ENV == "production"
+        else r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+)(:\d+)?"
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -73,3 +74,4 @@ app.include_router(notice_router.router)
 app.include_router(carousel_router.router)
 app.include_router(youtube_link_router.router)
 app.include_router(dam_page_router.router)
+app.include_router(admin_auth_router.router)
