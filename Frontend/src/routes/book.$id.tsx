@@ -1,10 +1,12 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
-import { ArrowLeft, ArrowDownWideNarrow, X, Loader2 } from "lucide-react";
+import { ArrowLeft, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BASE_URL } from "@/lib/api";
+import { TERMS_CLAUSES } from "@/lib/terms";
 import { useYatraAuth } from "@/lib/yatra-auth";
 import { toast } from "sonner";
 
@@ -312,9 +314,34 @@ function PaymentDialog({
   // Synchronous double-click guard (state updates are async, a ref is not)
   const payingRef = useRef(false);
 
-  function openWhatsAppGroup() {
-    if (whatsappGroupLink) window.open(whatsappGroupLink, "_blank", "noopener,noreferrer");
+  const [termsOpen, setTermsOpen] = useState(false);
+  const [thankYouOpen, setThankYouOpen] = useState(false);
+  const [countdown, setCountdown] = useState(4);
+  const redirectedRef = useRef(false);
+
+  const [thankYouKind, setThankYouKind] = useState<"paid" | "cash">("paid");
+
+  function showThankYou(kind: "paid" | "cash" = "paid") {
+    redirectedRef.current = false;
+    setThankYouKind(kind);
+    setCountdown(4);
+    setThankYouOpen(true);
   }
+
+  // Count 4 → 0, then try to open the group. Browsers may block a tab opened by a timer,
+  // so the green button below stays as the reliable fallback.
+  useEffect(() => {
+    if (!thankYouOpen || !whatsappGroupLink) return;
+    if (countdown <= 0) {
+      if (!redirectedRef.current) {
+        redirectedRef.current = true;
+        window.open(whatsappGroupLink, "_blank", "noopener,noreferrer");
+      }
+      return;
+    }
+    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [thankYouOpen, countdown, whatsappGroupLink]);
 
   const rows = useMemo(
     () =>
@@ -378,7 +405,7 @@ function PaymentDialog({
           toast.success(`Payment successful! ${data.paid_registration_ids.length} registration(s) confirmed.`);
           onPaid(data.paid_registration_ids);
           setCheckedIds(new Set());
-          openWhatsAppGroup();
+          showThankYou();
           return;
         }
         if (res.status < 500) {
@@ -515,7 +542,7 @@ function PaymentDialog({
         onPaid(data.paid_registration_ids);
         setCheckedIds(new Set());
         onOpenChange(false);
-        openWhatsAppGroup();
+        showThankYou();
         return;
       }
 
@@ -580,10 +607,9 @@ function PaymentDialog({
       }
 
       toast.success("Registration confirmed — pay by cash to the organizer");
-      onPaid(selectedRegIds); // this adds them to paidIds locally
       setCheckedIds(new Set());
       onOpenChange(false);
-      openWhatsAppGroup();
+      showThankYou("cash");
     } catch {
       toast.error("Network error. Please try again.");
     } finally {
@@ -678,6 +704,36 @@ function PaymentDialog({
 
         <div className="border-t border-border px-5 pb-5 pt-4">
           <p className="text-2xl font-extrabold">Grand Total: {formatPrice(grandTotal)}</p>
+          <div className="mt-1 flex items-center justify-between gap-3 text-xs">
+            <span className="font-medium text-muted-foreground">Payment is Non-Refundable</span>
+            <button
+              type="button"
+              onClick={() => setTermsOpen(true)}
+              className="cursor-pointer font-semibold text-blue-600 underline underline-offset-2 hover:text-blue-700"
+            >
+              Terms &amp; Conditions
+            </button>
+          </div>
+
+          <Dialog open={termsOpen} onOpenChange={setTermsOpen}>
+            <DialogContent className="flex max-h-[85dvh] flex-col gap-0 overflow-hidden rounded-3xl p-0 sm:max-w-lg">
+              <DialogHeader className="shrink-0 border-b border-border px-6 py-4 text-left">
+                <DialogTitle className="text-lg font-extrabold">Terms &amp; Conditions</DialogTitle>
+                <DialogDescription className="sr-only">Terms and conditions for yatra registration</DialogDescription>
+              </DialogHeader>
+              <ul className="min-h-0 flex-1 space-y-3 overflow-y-auto px-6 py-5">
+                {TERMS_CLAUSES.map((clause, i) => (
+                  <li key={i} className="flex gap-3 text-sm leading-relaxed text-foreground">
+                    <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-gradient-primary text-[10px] font-bold text-primary-foreground shadow-glow">
+                      {i + 1}
+                    </span>
+                    {clause}
+                  </li>
+                ))}
+              </ul>
+            </DialogContent>
+          </Dialog>
+
           <div className="mt-4 flex gap-3">
             <button
               type="button"
@@ -712,6 +768,54 @@ function PaymentDialog({
         <div className="flex items-center gap-3 rounded-2xl bg-card px-5 py-4 text-sm font-semibold shadow-lg">
           <Loader2 className="size-5 animate-spin text-primary" />
           {verifying ? "Confirming your payment…" : "Opening secure payment…"}
+        </div>
+      </div>
+    )}
+
+    {thankYouOpen && (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="thank-you-title"
+        className="fixed inset-0 z-[100] grid place-items-center bg-black/60 p-4"
+      >
+        <div className="relative w-full max-w-sm rounded-3xl bg-card p-7 text-center shadow-xl">
+          <button
+            type="button"
+            onClick={() => setThankYouOpen(false)}
+            aria-label="Close"
+            className="absolute right-4 top-4 grid size-8 place-items-center rounded-full bg-primary text-white shadow transition-transform active:scale-95"
+          >
+            <X className="size-4" strokeWidth={3} />
+          </button>
+
+          <h2 id="thank-you-title" className="px-6 text-3xl font-extrabold leading-tight">
+            Thank You for Registration
+          </h2>
+
+          {(thankYouKind === "cash" || whatsappGroupLink) && (
+            <p className="mt-3 text-sm text-muted-foreground">
+              {thankYouKind === "cash"
+                ? "Organizer will contact you for Cash Collection. Hare Krishna !"
+                : "We are adding you to the Dedicated Yatra Group for Further Updates. Hare Krsna !"}
+            </p>
+          )}
+
+          {whatsappGroupLink && (
+            <>
+              <div className="mt-5 text-5xl font-extrabold tabular-nums text-primary" aria-live="polite">
+                {countdown}
+              </div>
+              <a
+                href={whatsappGroupLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-5 flex h-12 w-full items-center justify-center rounded-2xl bg-[#25D366] text-base font-bold text-white shadow transition-opacity hover:opacity-90 active:scale-95"
+              >
+                Join WhatsApp Group
+              </a>
+            </>
+          )}
         </div>
       </div>
     )}
@@ -1037,7 +1141,6 @@ function BookYatra() {
           <h1 className="min-w-0 flex-1 truncate text-lg font-extrabold uppercase tracking-tight sm:text-2xl">
             Welcome to {yatra.title}
           </h1>
-          <ArrowDownWideNarrow className="size-6 shrink-0" />
         </div>
       </header>
 

@@ -8,6 +8,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { ArrowLeft, Construction, Loader2, Phone, ScrollText, ShieldCheck } from "lucide-react";
 import { useYatraAuth } from "@/lib/yatra-auth";
 import { BASE_URL } from "@/lib/api";
+import { TERMS_CLAUSES } from "@/lib/terms";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -358,17 +359,7 @@ function AuthPage() {
           {/* Scrollable body */}
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
             <ul className="space-y-3">
-              {[
-                "This registration is for participating in the Yatra organized by the management.",
-                "Hotel accommodation and food will be provided as part of the yatra package, as per the selected plan.",
-                "Children aged 5 years or below will be provided free hotel accommodation and food.",
-                "Children aged 6 to 10 years will be charged 50% of the hotel and food charges.",
-                "All personal details submitted during registration must be accurate and truthful.",
-                "Any false or incorrect information may result in cancellation of the registration without refund.",
-                "The organizers are not responsible for delays, loss of belongings, during the yatra.",
-                "Any fees paid, if applicable, are non-refundable unless explicitly stated otherwise.",
-                "Personal information collected will be used only for registration and communication related to the Yatra.",
-              ].map((clause, i) => (
+              {TERMS_CLAUSES.map((clause, i) => (
                 <li key={i} className="flex gap-3 text-sm leading-relaxed text-foreground">
                   <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-gradient-primary text-[10px] font-bold text-primary-foreground shadow-glow">
                     {i + 1}

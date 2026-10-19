@@ -131,7 +131,7 @@ function PersonalDetails() {
             <span className="mx-auto grid size-24 place-items-center rounded-full bg-white/80 backdrop-blur">
               <UserRound className="size-12 text-accent-foreground" />
             </span>
-            <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-accent-foreground">+91 {user.phone}</h1>
+            <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-accent-foreground">Hare Krishna !</h1>
             <p className="mt-1 text-sm text-accent-foreground/75">{user.name}</p>
           </section>
 
