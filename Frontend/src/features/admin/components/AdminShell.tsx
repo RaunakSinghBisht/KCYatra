@@ -107,9 +107,9 @@ function AdminShellInner({
 }) {
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-[calc(100vh-61px)] bg-muted/30">
       <div className="flex gap-6 px-3 py-4 sm:px-6 sm:py-6">
-        <aside className="sticky top-4 hidden h-[calc(100vh-2rem)] w-64 shrink-0 flex-col rounded-2xl border border-border bg-card p-4 shadow-soft lg:flex">
+        <aside className="sticky top-[calc(61px+1rem)] hidden h-[calc(100vh-61px-2rem)] w-64 shrink-0 flex-col rounded-2xl border border-border bg-card p-4 shadow-soft lg:flex">
           <div className="flex items-center gap-2 px-1 pb-4">
             <span className="grid size-9 place-items-center rounded-xl bg-gradient-primary text-primary-foreground shadow-glow">
               <MountainSnow className="size-5" />

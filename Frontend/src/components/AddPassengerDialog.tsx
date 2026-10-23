@@ -101,6 +101,9 @@ export function AddPassengerDialog({ trigger, userId, passenger, onSuccess }: Pr
       return;
     }
     if (!gender) { toast.error("Please select a gender"); return; }
+    if (!state) { toast.error("Please select a state"); return; }
+    if (!district) { toast.error("Please select a district"); return; }
+    if (!city.trim()) { toast.error("City is required"); return; }
     if (phone && phone.replace(/\D/g, "").length !== 10) {
       toast.error("Phone number must be exactly 10 digits"); return;
     }

@@ -6,6 +6,16 @@ import { AdminShell, ExportButtons, StatCard } from "@/features/admin/components
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ManualBookingDialog } from "@/features/admin/components/ManualBookingDialog";
 import { EditRegistrationDialog } from "@/features/admin/components/EditRegistrationDialog";
 import { exportCsv, exportExcel } from "@/features/admin/lib/export-records";
@@ -110,6 +120,8 @@ function AdminBookings() {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [yatraFilter, setYatraFilter] = useState("all");
+  const [deleting, setDeleting] = useState<Registration | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const load = async () => {
     try {
@@ -150,15 +162,21 @@ function AdminBookings() {
   const collected = rows.reduce((s, r) => s + r.amountPaid, 0);
   const paidCount = rows.filter((r) => r.paymentStatus === "paid").length;
 
-  const handleDelete = async (id: number, name: string) => {
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    const { id, passengerName: name } = deleting;
+    setIsDeleting(true);
     try {
       const res = await fetch(`${BASE_URL}/registrations/${id}`, { method: "DELETE" });
       if (!res.ok && res.status !== 204) throw new Error(await res.text());
       setRegistrations((prev) => prev.filter((r) => r.id !== id));
       toast.success(`Registration for ${name} deleted`);
+      setDeleting(null);
     } catch (err) {
       toast.error("Failed to delete registration");
       console.error(err);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -233,7 +251,7 @@ function AdminBookings() {
                     variant="ghost"
                     aria-label="Delete registration"
                     className="text-destructive"
-                    onClick={() => handleDelete(r.id, r.passengerName)}
+                    onClick={() => setDeleting(r)}
                   >
                     <Trash2 className="size-4" />
                   </Button>
@@ -253,6 +271,34 @@ function AdminBookings() {
           ))
         )}
       </section>
+
+      <AlertDialog open={deleting !== null} onOpenChange={(open) => !open && !isDeleting && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this registration?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the registration{" "}
+              <strong className="text-foreground">RGS{deleting?.id}</strong> of{" "}
+              <strong className="text-foreground">{deleting?.passengerName}</strong>
+              {deleting?.yatraTitle ? <> for <strong className="text-foreground">{deleting.yatraTitle}</strong></> : null}?
+              This permanently removes the booking and payment record and cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDelete();
+              }}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete Registration"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminShell>
   );
 }

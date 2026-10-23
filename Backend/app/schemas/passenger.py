@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, ValidationInfo, field_validator
 
 
 class PassengerCreate(BaseModel):
@@ -9,9 +9,9 @@ class PassengerCreate(BaseModel):
     gender: str
     year_of_birth: int
     special_assistance: str = "Not Required"
-    state: str | None = None
-    district: str | None = None
-    city: str | None = None
+    state: str
+    district: str
+    city: str
     phone_no: str | None = None
 
     @field_validator("special_assistance")
@@ -44,26 +44,15 @@ class PassengerCreate(BaseModel):
             raise ValueError("year_of_birth must be a valid year between 1900 and 2100.")
         return v
 
-    @field_validator("state")
+    @field_validator("state", "district", "city")
     @classmethod
-    def validate_state(cls, v: str | None) -> str | None:
-        if v is not None and len(v.strip()) > 100:
-            raise ValueError("state must be at most 100 characters.")
-        return v.strip() if v else None
-
-    @field_validator("district")
-    @classmethod
-    def validate_district(cls, v: str | None) -> str | None:
-        if v is not None and len(v.strip()) > 100:
-            raise ValueError("district must be at most 100 characters.")
-        return v.strip() if v else None
-
-    @field_validator("city")
-    @classmethod
-    def validate_city(cls, v: str | None) -> str | None:
-        if v is not None and len(v.strip()) > 100:
-            raise ValueError("city must be at most 100 characters.")
-        return v.strip() if v else None
+    def validate_address_field(cls, v: str, info: ValidationInfo) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError(f"{info.field_name} is required.")
+        if len(v) > 100:
+            raise ValueError(f"{info.field_name} must be at most 100 characters.")
+        return v
 
     @field_validator("phone_no")
     @classmethod
@@ -120,26 +109,18 @@ class PassengerUpdate(BaseModel):
             raise ValueError("year_of_birth must be a valid year between 1900 and 2100.")
         return v
 
-    @field_validator("state")
+    # Omitted / null = leave the stored value unchanged; a blank string is rejected.
+    @field_validator("state", "district", "city")
     @classmethod
-    def validate_state(cls, v: str | None) -> str | None:
-        if v is not None and len(v.strip()) > 100:
-            raise ValueError("state must be at most 100 characters.")
-        return v.strip() if v else None
-
-    @field_validator("district")
-    @classmethod
-    def validate_district(cls, v: str | None) -> str | None:
-        if v is not None and len(v.strip()) > 100:
-            raise ValueError("district must be at most 100 characters.")
-        return v.strip() if v else None
-
-    @field_validator("city")
-    @classmethod
-    def validate_city(cls, v: str | None) -> str | None:
-        if v is not None and len(v.strip()) > 100:
-            raise ValueError("city must be at most 100 characters.")
-        return v.strip() if v else None
+    def validate_address_field(cls, v: str | None, info: ValidationInfo) -> str | None:
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:
+            raise ValueError(f"{info.field_name} cannot be empty.")
+        if len(v) > 100:
+            raise ValueError(f"{info.field_name} must be at most 100 characters.")
+        return v
 
     @field_validator("phone_no")
     @classmethod
@@ -175,4 +156,3 @@ class PassengerResponse(BaseModel):
 
 class PassengerAdminResponse(PassengerResponse):
     pass
-

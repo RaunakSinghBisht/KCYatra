@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import {
   BadgeCheck,
@@ -219,6 +219,14 @@ function PersonalDetails() {
                 ))}
             </ul>
           </section>
+
+          <p className="mt-4 text-center text-sm text-black">
+            After Adding Passengers goto{" "}
+            <Link to="/select-yatra" className="font-bold text-blue-600 underline underline-offset-2 hover:text-blue-700">
+              Select Yatra
+            </Link>{" "}
+            to Book Your Seat
+          </p>
 
           {/* Contact Us */}
           <div className="mt-6 flex items-center justify-between gap-3 rounded-2xl border border-border bg-card/60 px-4 py-3">

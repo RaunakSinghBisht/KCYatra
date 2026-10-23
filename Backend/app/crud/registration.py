@@ -273,6 +273,8 @@ async def admin_manual_create_registration(
     else:
         if not data.full_name or not data.year_of_birth:
             raise RegistrationError("full_name and year_of_birth are required for a new passenger.")
+        if not all((v or "").strip() for v in (data.state, data.district, data.city)):
+            raise RegistrationError("state, district and city are required for a new passenger.")
         phone = (data.login_phone or "").strip() or "0000000000"
         user = await get_or_create_user_by_phone(db, phone)
         passenger = Passenger(
@@ -281,9 +283,9 @@ async def admin_manual_create_registration(
             gender=data.gender or "male",
             year_of_birth=data.year_of_birth,
             phone_no=data.phone_no or None,
-            state=data.state or None,
-            district=data.district or None,
-            city=data.city or None,
+            state=data.state.strip(),
+            district=data.district.strip(),
+            city=data.city.strip(),
             special_assistance=data.special_assistance or "Not Required",
         )
         db.add(passenger)

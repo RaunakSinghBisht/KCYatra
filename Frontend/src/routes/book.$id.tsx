@@ -26,6 +26,8 @@ export const Route = createFileRoute("/book/$id")({
 
 // ── API types ─────────────────────────────────────────────────────────────────
 
+const THANK_YOU_KEY = "kcy-thank-you";
+
 type Package = { title: string; price: number };
 
 type Yatra = {
@@ -316,32 +318,43 @@ function PaymentDialog({
 
   const [termsOpen, setTermsOpen] = useState(false);
   const [thankYouOpen, setThankYouOpen] = useState(false);
-  const [countdown, setCountdown] = useState(4);
-  const redirectedRef = useRef(false);
-
   const [thankYouKind, setThankYouKind] = useState<"paid" | "cash">("paid");
 
   function showThankYou(kind: "paid" | "cash" = "paid") {
-    redirectedRef.current = false;
     setThankYouKind(kind);
-    setCountdown(4);
     setThankYouOpen(true);
-  }
+    if (!whatsappGroupLink) return;
 
-  // Count 4 → 0, then try to open the group. Browsers may block a tab opened by a timer,
-  // so the green button below stays as the reliable fallback.
-  useEffect(() => {
-    if (!thankYouOpen || !whatsappGroupLink) return;
-    if (countdown <= 0) {
-      if (!redirectedRef.current) {
-        redirectedRef.current = true;
-        window.open(whatsappGroupLink, "_blank", "noopener,noreferrer");
-      }
+    // Open the group straight away in a new tab; this tab keeps the thank-you box.
+    const tab = window.open(whatsappGroupLink, "_blank");
+    if (tab) {
+      try { tab.opener = null; } catch { /* ignore */ }
       return;
     }
-    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [thankYouOpen, countdown, whatsappGroupLink]);
+    // Popup blocked (common on phones) → continue in this tab; the flag brings the box back on return.
+    try { sessionStorage.setItem(THANK_YOU_KEY, kind); } catch { /* ignore */ }
+    window.location.assign(whatsappGroupLink);
+  }
+
+  // Back from WhatsApp with the page reloaded → show the thank-you box again.
+  useEffect(() => {
+    try {
+      const kind = sessionStorage.getItem(THANK_YOU_KEY);
+      if (kind === "paid" || kind === "cash") {
+        sessionStorage.removeItem(THANK_YOU_KEY);
+        setThankYouKind(kind);
+        setThankYouOpen(true);
+      }
+    } catch { /* ignore */ }
+    // A page restored from the back/forward cache keeps its state, so just drop the flag.
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        try { sessionStorage.removeItem(THANK_YOU_KEY); } catch { /* ignore */ }
+      }
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
 
   const rows = useMemo(
     () =>
@@ -642,7 +655,7 @@ function PaymentDialog({
         </div>
 
         <SheetHeader className="px-5 pb-2 pt-3 text-left">
-          <SheetTitle className="text-xl font-extrabold">Choose For Payments</SheetTitle>
+          <SheetTitle className="text-xl font-extrabold">Select Passengers For Payment</SheetTitle>
         </SheetHeader>
 
         <div className="max-h-[60vh] space-y-3 overflow-y-auto px-5 py-4">
@@ -672,7 +685,7 @@ function PaymentDialog({
                   checked={checked}
                   disabled={!r.isSelectable || r.isPaid || isBusy}
                   onCheckedChange={() => toggle(r.id)}
-                  className="size-5 rounded-md border-2 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                  className="size-6 rounded-[5px] border-2 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
                 />
                 <label
                   htmlFor={`pay-${r.id}`}
@@ -802,19 +815,14 @@ function PaymentDialog({
           )}
 
           {whatsappGroupLink && (
-            <>
-              <div className="mt-5 text-5xl font-extrabold tabular-nums text-primary" aria-live="polite">
-                {countdown}
-              </div>
-              <a
-                href={whatsappGroupLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-5 flex h-12 w-full items-center justify-center rounded-2xl bg-[#25D366] text-base font-bold text-white shadow transition-opacity hover:opacity-90 active:scale-95"
-              >
-                Join WhatsApp Group
-              </a>
-            </>
+            <a
+              href={whatsappGroupLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-5 flex h-12 w-full items-center justify-center rounded-2xl bg-[#25D366] text-base font-bold text-white shadow transition-opacity hover:opacity-90 active:scale-95"
+            >
+              Join WhatsApp Group
+            </a>
           )}
         </div>
       </div>

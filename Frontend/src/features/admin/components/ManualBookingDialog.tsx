@@ -115,6 +115,9 @@ export function ManualBookingDialog({ onCreated }: { onCreated: () => void }) {
       if (!form.loginPhone.trim()) { toast.error("Parent phone is required for a new passenger"); return; }
       if (!form.fullName.trim()) { toast.error("Full name is required"); return; }
       if (!form.yob || isNaN(Number(form.yob))) { toast.error("Year of birth is required"); return; }
+      if (!form.state) { toast.error("State is required for a new passenger"); return; }
+      if (!form.district) { toast.error("District is required for a new passenger"); return; }
+      if (!form.city.trim()) { toast.error("City is required for a new passenger"); return; }
     }
     if (!form.hotelPackage) { toast.error("Hotel package is required"); return; }
     if (!form.travelPackage) { toast.error("Travel package is required"); return; }

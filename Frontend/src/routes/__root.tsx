@@ -6,7 +6,6 @@ import {
   useRouter,
   HeadContent,
   Scripts,
-  useRouterState,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
@@ -127,15 +126,13 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const pathname = useRouterState({ select: (s) => s?.location?.pathname ?? "" });
-  const isAdminRoute = pathname.startsWith("/admin224151");
 
   return (
     <QueryClientProvider client={queryClient}>
       <YatraAuthProvider>
         <AdminAuthProvider>
           <AdminStoreProvider>
-            {!isAdminRoute && <SiteHeader />}
+            <SiteHeader />
             {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
             <Outlet />
             <Toaster position="top-center" richColors />

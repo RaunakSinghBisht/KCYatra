@@ -190,6 +190,18 @@ function AdminUsers() {
       toast.error("Valid year of birth is required");
       return;
     }
+    if (!editing.state?.trim()) {
+      toast.error("State is required");
+      return;
+    }
+    if (!editing.district?.trim()) {
+      toast.error("District is required");
+      return;
+    }
+    if (!editing.city?.trim()) {
+      toast.error("City is required");
+      return;
+    }
 
     setSavingEdit(true);
     try {
