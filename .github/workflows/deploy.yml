@@ -62,6 +62,10 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # Public information, safe to print. Compare with: ssh-keygen -lf ~/.ssh/kcy_deploy.pub
+          # (fails here, clearly, if the secret is not a valid private key)
+          echo "Deploy key fingerprint:"
+          ssh-keygen -y -f ~/.ssh/id_deploy | ssh-keygen -lf -
 
       - name: Deploy ${{ github.ref_name }}
         env:
@@ -69,6 +73,6 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER }}
           TAG: ${{ github.ref_name }}
         run: |
-          ssh -i ~/.ssh/id_deploy \
+          ssh -v -i ~/.ssh/id_deploy \
             -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
             "$VPS_USER@$VPS_HOST" 'bash -s' -- "$TAG" < deploy/deploy.sh
