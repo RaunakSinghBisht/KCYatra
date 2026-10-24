@@ -22,6 +22,7 @@ import { Route as Admin224151CarouselRouteImport } from './routes/admin224151.ca
 import { Route as Admin224151LoginRouteImport } from './routes/admin224151.login'
 import { Route as Admin224151MaintenanceRouteImport } from './routes/admin224151.maintenance'
 import { Route as Admin224151NoticesRouteImport } from './routes/admin224151.notices'
+import { Route as Admin224151SessionsRouteImport } from './routes/admin224151.sessions'
 import { Route as Admin224151UserRouteImport } from './routes/admin224151.user'
 import { Route as Admin224151UsersRouteImport } from './routes/admin224151.users'
 import { Route as Admin224151YatrasRouteImport } from './routes/admin224151.yatras'
@@ -93,6 +94,11 @@ const Admin224151NoticesRoute = Admin224151NoticesRouteImport.update({
   path: '/admin224151/notices',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Admin224151SessionsRoute = Admin224151SessionsRouteImport.update({
+  id: '/admin224151/sessions',
+  path: '/admin224151/sessions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const Admin224151UserRoute = Admin224151UserRouteImport.update({
   id: '/admin224151/user',
   path: '/admin224151/user',
@@ -132,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/admin224151/login': typeof Admin224151LoginRoute
   '/admin224151/maintenance': typeof Admin224151MaintenanceRoute
   '/admin224151/notices': typeof Admin224151NoticesRoute
+  '/admin224151/sessions': typeof Admin224151SessionsRoute
   '/admin224151/user': typeof Admin224151UserRoute
   '/admin224151/users': typeof Admin224151UsersRoute
   '/admin224151/yatras': typeof Admin224151YatrasRoute
@@ -152,6 +159,7 @@ export interface FileRoutesByTo {
   '/admin224151/login': typeof Admin224151LoginRoute
   '/admin224151/maintenance': typeof Admin224151MaintenanceRoute
   '/admin224151/notices': typeof Admin224151NoticesRoute
+  '/admin224151/sessions': typeof Admin224151SessionsRoute
   '/admin224151/user': typeof Admin224151UserRoute
   '/admin224151/users': typeof Admin224151UsersRoute
   '/admin224151/yatras': typeof Admin224151YatrasRoute
@@ -173,6 +181,7 @@ export interface FileRoutesById {
   '/admin224151/login': typeof Admin224151LoginRoute
   '/admin224151/maintenance': typeof Admin224151MaintenanceRoute
   '/admin224151/notices': typeof Admin224151NoticesRoute
+  '/admin224151/sessions': typeof Admin224151SessionsRoute
   '/admin224151/user': typeof Admin224151UserRoute
   '/admin224151/users': typeof Admin224151UsersRoute
   '/admin224151/yatras': typeof Admin224151YatrasRoute
@@ -195,6 +204,7 @@ export interface FileRouteTypes {
     | '/admin224151/login'
     | '/admin224151/maintenance'
     | '/admin224151/notices'
+    | '/admin224151/sessions'
     | '/admin224151/user'
     | '/admin224151/users'
     | '/admin224151/yatras'
@@ -215,6 +225,7 @@ export interface FileRouteTypes {
     | '/admin224151/login'
     | '/admin224151/maintenance'
     | '/admin224151/notices'
+    | '/admin224151/sessions'
     | '/admin224151/user'
     | '/admin224151/users'
     | '/admin224151/yatras'
@@ -235,6 +246,7 @@ export interface FileRouteTypes {
     | '/admin224151/login'
     | '/admin224151/maintenance'
     | '/admin224151/notices'
+    | '/admin224151/sessions'
     | '/admin224151/user'
     | '/admin224151/users'
     | '/admin224151/yatras'
@@ -256,6 +268,7 @@ export interface RootRouteChildren {
   Admin224151LoginRoute: typeof Admin224151LoginRoute
   Admin224151MaintenanceRoute: typeof Admin224151MaintenanceRoute
   Admin224151NoticesRoute: typeof Admin224151NoticesRoute
+  Admin224151SessionsRoute: typeof Admin224151SessionsRoute
   Admin224151UserRoute: typeof Admin224151UserRoute
   Admin224151UsersRoute: typeof Admin224151UsersRoute
   Admin224151YatrasRoute: typeof Admin224151YatrasRoute
@@ -357,6 +370,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Admin224151NoticesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin224151/sessions': {
+      id: '/admin224151/sessions'
+      path: '/admin224151/sessions'
+      fullPath: '/admin224151/sessions'
+      preLoaderRoute: typeof Admin224151SessionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin224151/user': {
       id: '/admin224151/user'
       path: '/admin224151/user'
@@ -408,6 +428,7 @@ const rootRouteChildren: RootRouteChildren = {
   Admin224151LoginRoute: Admin224151LoginRoute,
   Admin224151MaintenanceRoute: Admin224151MaintenanceRoute,
   Admin224151NoticesRoute: Admin224151NoticesRoute,
+  Admin224151SessionsRoute: Admin224151SessionsRoute,
   Admin224151UserRoute: Admin224151UserRoute,
   Admin224151UsersRoute: Admin224151UsersRoute,
   Admin224151YatrasRoute: Admin224151YatrasRoute,

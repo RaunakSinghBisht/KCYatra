@@ -11,6 +11,7 @@ from app.crud.carousel import (
     get_all_carousel_images,
     reorder_carousel_images,
 )
+from app.dependencies.auth import require_admin
 from app.dependencies.db import get_db
 from app.schemas.carousel import CarouselImageResponse, CarouselReorderRequest
 
@@ -55,6 +56,7 @@ async def list_carousel_images(
     response_model=list[CarouselImageResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Upload one or more carousel images",
+    dependencies=[Depends(require_admin)],
 )
 async def upload_carousel_images(
     images: list[UploadFile] = File(...),
@@ -100,6 +102,7 @@ async def upload_carousel_images(
     "/{image_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a carousel image",
+    dependencies=[Depends(require_admin)],
 )
 async def delete_carousel_image_route(
     image_id: int,
@@ -118,6 +121,7 @@ async def delete_carousel_image_route(
     "/reorder",
     response_model=list[CarouselImageResponse],
     summary="Reorder carousel images by providing IDs in the desired order",
+    dependencies=[Depends(require_admin)],
 )
 async def reorder_carousel(
     payload: CarouselReorderRequest,

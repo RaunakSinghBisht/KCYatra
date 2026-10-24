@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Bell, Loader2 } from "lucide-react";
+import { authFetch } from "@/lib/auth-client";
 import { DashboardShell } from "@/components/DashboardShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,7 @@ type BackendNotice = {
 };
 
 async function fetchLiveNotices(): Promise<BackendNotice[]> {
-  const res = await fetch(`${BASE_URL}/notices/?published_only=true`);
+  const res = await authFetch(`${BASE_URL}/notices/?published_only=true`);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail ?? "Failed to load notices");

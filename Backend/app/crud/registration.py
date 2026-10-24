@@ -162,7 +162,8 @@ async def mark_registrations_as_cash(
     updated_ids = []
     for reg_id in registration_ids:
         reg = await db.scalar(select(Registration).where(Registration.id == reg_id))
-        if reg:
+        # Never downgrade a booking that already has money against it.
+        if reg and reg.payment_status not in ("paid", "partial_paid"):
             reg.payment_method = "cash"
             reg.payment_status = "not_paid"
             reg.amount_paid = 0  # type: ignore[assignment]

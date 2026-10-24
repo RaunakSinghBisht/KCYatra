@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Pencil, X } from "lucide-react";
+import { authFetch } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BASE_URL } from "@/lib/api";
 import type { Registration } from "@/routes/admin224151.bookings";
 
-const PAYMENT_STATUSES = ["interested", "paid", "not_paid", "cash"];
+const PAYMENT_STATUSES = ["interested", "paid", "partial_paid", "not_paid", "cash"];
 const PAYMENT_METHODS = ["cash", "online"];
 
 export function EditRegistrationDialog({ registration: r, onUpdated }: { registration: Registration; onUpdated: () => void }) {
@@ -25,7 +26,7 @@ export function EditRegistrationDialog({ registration: r, onUpdated }: { registr
   const save = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`${BASE_URL}/registrations/${r.id}`, {
+      const res = await authFetch(`${BASE_URL}/registrations/${r.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

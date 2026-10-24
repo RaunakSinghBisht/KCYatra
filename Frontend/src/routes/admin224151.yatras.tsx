@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Calendar, ImagePlus, Link2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { authFetch } from "@/lib/auth-client";
 import { AdminShell, ExportButtons } from "@/features/admin/components/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,7 +93,7 @@ const emptyDraft: DraftForm = {
 
 // ── API helpers ────────────────────────────────────────────────────────────────
 async function fetchYatras(): Promise<YatraRow[]> {
-  const res = await fetch(`${BASE_URL}/yatras/`);
+  const res = await authFetch(`${BASE_URL}/yatras/`);
   if (!res.ok) throw new Error("Failed to fetch yatras");
   return res.json();
 }
@@ -110,7 +111,7 @@ async function createYatraApi(draft: DraftForm, imageFile: File | null): Promise
   if (draft.travel_packages.length) form.append("travel_packages", JSON.stringify(draft.travel_packages));
   if (imageFile) form.append("image", imageFile);
 
-  const res = await fetch(`${BASE_URL}/yatras/`, { method: "POST", body: form });
+  const res = await authFetch(`${BASE_URL}/yatras/`, { method: "POST", body: form });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail ?? "Failed to create yatra");
@@ -131,7 +132,7 @@ async function updateYatraApi(id: number, draft: DraftForm, imageFile: File | nu
   form.append("travel_packages", JSON.stringify(draft.travel_packages));
   if (imageFile) form.append("image", imageFile);
 
-  const res = await fetch(`${BASE_URL}/yatras/${id}`, { method: "PUT", body: form });
+  const res = await authFetch(`${BASE_URL}/yatras/${id}`, { method: "PUT", body: form });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail ?? "Failed to update yatra");
@@ -140,7 +141,7 @@ async function updateYatraApi(id: number, draft: DraftForm, imageFile: File | nu
 }
 
 async function deleteYatraApi(id: number): Promise<void> {
-  const res = await fetch(`${BASE_URL}/yatras/${id}`, { method: "DELETE" });
+  const res = await authFetch(`${BASE_URL}/yatras/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error("Failed to delete yatra");
 }
 

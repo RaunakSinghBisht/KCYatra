@@ -9,7 +9,9 @@ from app.crud.passenger import (
     update_passenger,
     has_passenger_registrations,
 )
+from app.dependencies.auth import Principal, ensure_owner, get_principal, require_admin, require_user
 from app.dependencies.db import get_db
+from app.models.passenger import Passenger
 from app.schemas.passenger import (
     PassengerAdminResponse,
     PassengerCreate,
@@ -20,10 +22,22 @@ from app.schemas.passenger import (
 router = APIRouter(prefix="/passengers", tags=["Passengers"])
 
 
+async def _owned_passenger(db: AsyncSession, passenger_id: int, principal: Principal) -> Passenger:
+    passenger = await db.get(Passenger, passenger_id)
+    if passenger is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Passenger with id={passenger_id} not found.",
+        )
+    ensure_owner(principal, passenger.user_id)
+    return passenger
+
+
 @router.get(
     "/",
     response_model=list[PassengerAdminResponse],
     summary="List all passengers for admin management",
+    dependencies=[Depends(require_admin)],
 )
 async def list_all_passengers(
     include_deleted: bool = False,
@@ -40,8 +54,11 @@ async def list_all_passengers(
 )
 async def add_passenger(
     payload: PassengerCreate,
+    principal: Principal = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ) -> PassengerResponse:
+    # Passengers always belong to the logged-in account, whatever user_id was sent.
+    payload = payload.model_copy(update={"user_id": principal.user_id})
     try:
         passenger = await create_passenger(db, payload)
         return passenger
@@ -59,8 +76,10 @@ async def add_passenger(
 )
 async def list_passengers_by_user(
     user_id: int,
+    principal: Principal = Depends(get_principal),
     db: AsyncSession = Depends(get_db),
 ) -> list[PassengerResponse]:
+    ensure_owner(principal, user_id)
     return await get_passengers_by_user(db, user_id)
 
 
@@ -72,8 +91,10 @@ async def list_passengers_by_user(
 async def edit_passenger(
     passenger_id: int,
     payload: PassengerUpdate,
+    principal: Principal = Depends(get_principal),
     db: AsyncSession = Depends(get_db),
 ) -> PassengerAdminResponse:
+    await _owned_passenger(db, passenger_id, principal)
     passenger = await update_passenger(db, passenger_id, payload)
     if not passenger:
         raise HTTPException(
@@ -107,8 +128,10 @@ async def edit_passenger(
 )
 async def remove_passenger(
     passenger_id: int,
+    principal: Principal = Depends(get_principal),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    await _owned_passenger(db, passenger_id, principal)
     deleted = await delete_passenger(db, passenger_id)
     if not deleted:
         raise HTTPException(
@@ -124,7 +147,9 @@ async def remove_passenger(
 )
 async def check_passenger_registrations(
     passenger_id: int,
+    principal: Principal = Depends(get_principal),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    await _owned_passenger(db, passenger_id, principal)
     has_regs = await has_passenger_registrations(db, passenger_id)
     return {"has_registrations": has_regs}

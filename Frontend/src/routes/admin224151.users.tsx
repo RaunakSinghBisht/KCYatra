@@ -11,6 +11,7 @@ import {
   Trash2,
   UserCheck,
 } from "lucide-react";
+import { authFetch } from "@/lib/auth-client";
 import { AdminShell, ExportButtons } from "@/features/admin/components/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,7 +89,7 @@ function formatGender(gender?: string): string {
 }
 
 async function patchSiteSettings(patch: { otp_enabled?: boolean; accept_payments?: boolean }) {
-  const res = await fetch(`${BASE_URL}/dam-page/`, {
+  const res = await authFetch(`${BASE_URL}/dam-page/`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
@@ -106,7 +107,7 @@ function AdminUsers() {
 
   // Load site settings on mount
   useEffect(() => {
-    fetch(`${BASE_URL}/dam-page/`)
+    authFetch(`${BASE_URL}/dam-page/`)
       .then((r) => r.ok ? r.json() : Promise.reject())
       .then((data: { otp_enabled: boolean; accept_payments: boolean }) => {
         setOtpEnabled(data.otp_enabled);
@@ -130,7 +131,7 @@ function AdminUsers() {
   } = useQuery<PassengerRecord[]>({
     queryKey: ["admin", "passengers"],
     queryFn: async () => {
-      const res = await fetch(`${BASE_URL}/passengers/`);
+      const res = await authFetch(`${BASE_URL}/passengers/`);
       if (!res.ok) {
         throw new Error(`Failed to fetch passengers from server (HTTP ${res.status})`);
       }
@@ -205,7 +206,7 @@ function AdminUsers() {
 
     setSavingEdit(true);
     try {
-      const res = await fetch(`${BASE_URL}/passengers/${editing.id}`, {
+      const res = await authFetch(`${BASE_URL}/passengers/${editing.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -240,7 +241,7 @@ function AdminUsers() {
     if (!deletingPassenger) return;
     setIsDeleting(true);
     try {
-      const res = await fetch(`${BASE_URL}/passengers/${deletingPassenger.id}`, {
+      const res = await authFetch(`${BASE_URL}/passengers/${deletingPassenger.id}`, {
         method: "DELETE",
       });
 

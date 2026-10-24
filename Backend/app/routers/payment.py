@@ -29,6 +29,7 @@ import logging
 import uuid
 from datetime import datetime, timezone
 from decimal import ROUND_HALF_UP, Decimal
+from typing import Literal
 
 import razorpay
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -37,6 +38,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.dependencies.auth import Principal, require_user
 from app.dependencies.db import get_db
 from app.models.passenger import Passenger
 from app.models.payment_order import PaymentOrder
@@ -48,16 +50,27 @@ logger = logging.getLogger("kcyatra")
 router = APIRouter(prefix="/payments", tags=["Payments"])
 
 MAX_REGISTRATIONS_PER_ORDER = 20
+MIN_ORDER_PAISE = 100  # Razorpay rejects orders below ₹1.00
 RAZORPAY_TIMEOUT_SECONDS = 15
 FREE_ORDER_PREFIX = "FREE_"
 FREE_PAYMENT_ID = "FREE_PAYMENT"
 CLOSED_STATUSES = {"closed", "close"}
+
+# "Pay by Cash" bookings pay this share online up front; the rest is collected in cash.
+CASH_ADVANCE_PERCENT = Decimal("0.20")
+STATUS_PAID = "paid"
+STATUS_PARTIAL = "partial_paid"
+# Registrations in these states take no further online payment.
+NO_ONLINE_PAYMENT_STATUSES = {STATUS_PAID, STATUS_PARTIAL}
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
 class CreateOrderRequest(BaseModel):
     registration_ids: list[int] = Field(min_length=1, max_length=MAX_REGISTRATIONS_PER_ORDER)
+    # "full"         → pay the whole fare online
+    # "cash_partial" → pay 20% online now; the rest is paid in cash
+    mode: Literal["full", "cash_partial"] = "full"
 
 
 class CreateOrderResponse(BaseModel):
@@ -82,6 +95,8 @@ class VerifyPaymentResponse(BaseModel):
     success: bool
     message: str
     paid_registration_ids: list[int]
+    # Registrations that paid 20% online; the remainder is due in cash.
+    partial_registration_ids: list[int] = []
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -144,10 +159,18 @@ def _fare(base_amount: Decimal, age: int) -> Decimal:
     return _quantize(base_amount)
 
 
-async def _build_items(db: AsyncSession, registration_ids: list[int]) -> list[dict]:
+def _advance_paise(full_paise: int) -> int:
+    """20% of a fare, rounded to the nearest paisa."""
+    return int((Decimal(full_paise) * CASH_ADVANCE_PERCENT).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
+
+async def _build_items(
+    db: AsyncSession, registration_ids: list[int], user_id: int, *, partial: bool = False
+) -> list[dict]:
     """
-    Validate each registration and compute its payable amount (in paise) from DB data only.
-    Rejects unknown, already-paid, or closed-yatra registrations.
+    Validate each registration and compute what to charge now (in paise) from DB data only.
+    Item: {"registration_id", "amount_paise" (charged in this order), "full_paise" (whole fare), "partial"}.
+    Rejects unknown, other users', already-paid / 20%-paid, or closed-yatra registrations.
     """
     ids = list(dict.fromkeys(registration_ids))  # de-duplicate, keep order
     rows = (
@@ -163,17 +186,22 @@ async def _build_items(db: AsyncSession, registration_ids: list[int]) -> list[di
     items: list[dict] = []
     for reg_id in ids:
         entry = found.get(reg_id)
-        if not entry or entry[2].is_deleted:
+        if not entry or entry[2].is_deleted or entry[0].user_id != user_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Registration {reg_id} not found.",
             )
         reg, pax, yatra = entry
 
-        if reg.payment_status == "paid":
+        if reg.payment_status == STATUS_PAID:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Registration {reg_id} is already paid.",
+            )
+        if reg.payment_status == STATUS_PARTIAL:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="20% has already been paid online for this passenger. The remaining amount is to be paid in cash.",
             )
         if yatra.status in CLOSED_STATUSES:
             raise HTTPException(
@@ -185,7 +213,15 @@ async def _build_items(db: AsyncSession, registration_ids: list[int]) -> list[di
             reg.travel_package, yatra.travel_packages, "Travel"
         )
         age = yatra.start_date.year - pax.year_of_birth
-        items.append({"registration_id": reg.id, "amount_paise": int(_fare(base, age) * 100)})
+        full_paise = int(_fare(base, age) * 100)
+        items.append(
+            {
+                "registration_id": reg.id,
+                "amount_paise": _advance_paise(full_paise) if partial else full_paise,
+                "full_paise": full_paise,
+                "partial": partial,
+            }
+        )
 
     return items
 
@@ -228,13 +264,28 @@ def _order_registration_ids(order: PaymentOrder) -> list[int]:
     return [int(item["registration_id"]) for item in order.items]
 
 
-async def _mark_order_paid(db: AsyncSession, order: PaymentOrder, payment_id: str) -> list[int]:
+def _is_partial_item(item: dict) -> bool:
+    """A 20%-advance item with something left to collect in cash (a ₹0 fare has nothing left, so it counts as paid)."""
+    return bool(item.get("partial")) and int(item.get("full_paise", 0)) > 0
+
+
+def _split_ids(order: PaymentOrder) -> tuple[list[int], list[int]]:
+    paid = [int(i["registration_id"]) for i in order.items if not _is_partial_item(i)]
+    partial = [int(i["registration_id"]) for i in order.items if _is_partial_item(i)]
+    return paid, partial
+
+
+async def _mark_order_paid(
+    db: AsyncSession, order: PaymentOrder, payment_id: str
+) -> tuple[list[int], list[int]]:
     """
-    Mark every registration bound to the order as paid, atomically.
-    Caller must hold the order row lock. Idempotent — a paid order is a no-op.
+    Record the order's payment on every registration bound to it, atomically.
+    Returns (fully-paid ids, 20%-paid ids). A full payment sets "paid"/"online"; a 20% advance sets
+    "partial_paid"/"cash" (the rest is collected in cash). Caller must hold the order row lock.
+    Idempotent — an already-processed order is a no-op.
     """
     if order.status == "paid":
-        return _order_registration_ids(order)
+        return _split_ids(order)
 
     ids = _order_registration_ids(order)
     regs = (
@@ -245,31 +296,40 @@ async def _mark_order_paid(db: AsyncSession, order: PaymentOrder, payment_id: st
     by_id = {reg.id: reg for reg in regs}
 
     paid_ids: list[int] = []
+    partial_ids: list[int] = []
     for item in order.items:
         reg = by_id.get(int(item["registration_id"]))
         if reg is None:
             logger.warning("[Payment] Registration %s vanished before payment %s", item["registration_id"], payment_id)
             continue
-        if reg.payment_status == "paid" and reg.transaction_id != payment_id:
-            # Paid via a different order — customer was charged twice; needs a manual refund.
+        if reg.payment_status in NO_ONLINE_PAYMENT_STATUSES and reg.transaction_id != payment_id:
+            # Already settled via a different order — customer was charged twice; needs a manual refund.
             logger.error(
-                "[Payment] DUPLICATE PAYMENT registration=%d already paid (txn=%s); new payment=%s needs refund",
-                reg.id, reg.transaction_id, payment_id,
+                "[Payment] DUPLICATE PAYMENT registration=%d already %s (txn=%s); new payment=%s needs refund",
+                reg.id, reg.payment_status, reg.transaction_id, payment_id,
             )
             continue
-        reg.payment_status = "paid"
         reg.amount_paid = _quantize(Decimal(item["amount_paise"]) / Decimal(100))  # type: ignore[assignment]
         reg.transaction_id = payment_id
-        reg.payment_method = "online"
-        paid_ids.append(reg.id)
+        if _is_partial_item(item):
+            reg.payment_status = STATUS_PARTIAL
+            reg.payment_method = "cash"
+            partial_ids.append(reg.id)
+        else:
+            reg.payment_status = STATUS_PAID
+            reg.payment_method = "online"
+            paid_ids.append(reg.id)
 
     order.status = "paid"
     order.razorpay_payment_id = payment_id
     order.paid_at = datetime.now(timezone.utc)
     await db.commit()
 
-    logger.info("[Payment] Order %s paid payment=%s registrations=%s", order.razorpay_order_id, payment_id, paid_ids)
-    return paid_ids
+    logger.info(
+        "[Payment] Order %s processed payment=%s paid=%s partial=%s",
+        order.razorpay_order_id, payment_id, paid_ids, partial_ids,
+    )
+    return paid_ids, partial_ids
 
 
 # ── POST /payments/create-order ───────────────────────────────────────────────
@@ -282,10 +342,22 @@ async def _mark_order_paid(db: AsyncSession, order: PaymentOrder, payment_id: st
 )
 async def create_order(
     payload: CreateOrderRequest,
+    principal: Principal = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ) -> CreateOrderResponse:
-    items = await _build_items(db, payload.registration_ids)
+    items = await _build_items(
+        db, payload.registration_ids, principal.user_id, partial=payload.mode == "cash_partial"
+    )
     total_paise = sum(item["amount_paise"] for item in items)
+
+    if 0 < total_paise < MIN_ORDER_PAISE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "The amount to pay online is below the ₹1 minimum accepted by the payment gateway. "
+                "Please choose packages with a higher total."
+            ),
+        )
 
     if total_paise == 0:
         free_order_id = f"{FREE_ORDER_PREFIX}{uuid.uuid4().hex}"
@@ -298,7 +370,10 @@ async def create_order(
     order = await _create_razorpay_order(
         total_paise,
         receipt=f"kcy_{uuid.uuid4().hex[:24]}",
-        notes={"registration_ids": ",".join(str(i["registration_id"]) for i in items)[:250]},
+        notes={
+            "registration_ids": ",".join(str(i["registration_id"]) for i in items)[:250],
+            "mode": payload.mode,
+        },
     )
 
     db.add(PaymentOrder(razorpay_order_id=order["id"], amount_paise=total_paise, items=items))
@@ -323,6 +398,7 @@ async def create_order(
 )
 async def verify_payment(
     payload: VerifyPaymentRequest,
+    _principal: Principal = Depends(require_user),  # the Razorpay signature proves the payment itself
     db: AsyncSession = Depends(get_db),
 ) -> VerifyPaymentResponse:
     if not settings.RAZORPAY_API_SECRET:
@@ -341,11 +417,12 @@ async def verify_payment(
             detail="Payment verification failed. Invalid signature.",
         )
 
-    paid_ids = await _mark_order_paid(db, order, payload.razorpay_payment_id)
+    paid_ids, partial_ids = await _mark_order_paid(db, order, payload.razorpay_payment_id)
     return VerifyPaymentResponse(
         success=True,
-        message=f"{len(paid_ids)} registration(s) confirmed as paid.",
+        message=f"{len(paid_ids) + len(partial_ids)} registration(s) confirmed.",
         paid_registration_ids=paid_ids,
+        partial_registration_ids=partial_ids,
     )
 
 
@@ -358,17 +435,25 @@ async def verify_payment(
 )
 async def confirm_free_order(
     payload: ConfirmFreeRequest,
+    principal: Principal = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ) -> VerifyPaymentResponse:
     order = await _get_order_locked(db, payload.order_id)
     if not order or order.amount_paise != 0 or not order.razorpay_order_id.startswith(FREE_ORDER_PREFIX):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Free order not found.")
 
-    paid_ids = await _mark_order_paid(db, order, FREE_PAYMENT_ID)
+    owners = (
+        await db.scalars(select(Registration.user_id).where(Registration.id.in_(_order_registration_ids(order))))
+    ).all()
+    if any(owner != principal.user_id for owner in owners):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Free order not found.")
+
+    paid_ids, partial_ids = await _mark_order_paid(db, order, FREE_PAYMENT_ID)
     return VerifyPaymentResponse(
         success=True,
-        message=f"{len(paid_ids)} registration(s) confirmed.",
+        message=f"{len(paid_ids) + len(partial_ids)} registration(s) confirmed.",
         paid_registration_ids=paid_ids,
+        partial_registration_ids=partial_ids,
     )
 
 

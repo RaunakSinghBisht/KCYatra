@@ -7,13 +7,6 @@ import yatra2 from "@/assets/yatra-2.jpeg";
 import yatra3 from "@/assets/yatra-3.jpeg";
 import yatra4 from "@/assets/yatra-4.jpeg";
 import yatra5 from "@/assets/yatra-5.jpeg";
-import banner1 from "@/assets/banner-1.jpg.asset.json";
-import banner2 from "@/assets/banner-2.jpg.asset.json";
-import banner3 from "@/assets/banner-3.jpg.asset.json";
-import banner4 from "@/assets/banner-4.jpg.asset.json";
-import banner5 from "@/assets/banner-5.jpg.asset.json";
-import banner6 from "@/assets/banner-6.jpg.asset.json";
-import banner7 from "@/assets/banner-7.jpg.asset.json";
 import { BASE_URL } from "@/lib/api";
 
 export const Route = createFileRoute("/")({
@@ -36,17 +29,6 @@ export const Route = createFileRoute("/")({
   }),
   component: Landing,
 });
-
-const FALLBACK_SLIDES = [
-  { img: banner1.url, alt: "Chalo Dwarka — a sacred journey awaits" },
-  { img: banner4.url, alt: "Dwarka Yatra 2026, 25–31 May 2026" },
-  { img: banner5.url, alt: "Experience the magic of Krishna's kingdom" },
-  { img: banner2.url, alt: "One yatra, complete divine darshan of all sacred temples" },
-  { img: banner3.url, alt: "More than a yatra — a living experience of bhakti" },
-  { img: banner6.url, alt: "Yatra packages — Basic, Standard and Premium" },
-  { img: banner7.url, alt: "Package description — accommodation, meals and bus fares" },
-];
-
 
 const experiences = [
   {
@@ -176,80 +158,99 @@ type CarouselSlide = { img: string; alt: string };
 
 function Landing() {
   const [current, setCurrent] = useState(0);
-  const [slides, setSlides] = useState<CarouselSlide[]>(FALLBACK_SLIDES);
+  // null = still loading; [] = nothing to show
+  const [slides, setSlides] = useState<CarouselSlide[] | null>(null);
+  // Slides whose image has finished loading (or failed), so a half-loaded image never shows.
+  const [settled, setSettled] = useState<Set<number>>(new Set());
+  const count = slides?.length ?? 0;
 
   useEffect(() => {
     fetch(`${BASE_URL}/carousel/`)
       .then((r) => r.ok ? r.json() : Promise.reject())
       .then((items: { id: number; filename: string }[]) => {
-        if (items.length > 0) {
-          setSlides(items.map((item, i) => ({
-            img: `/carousel/${item.filename}`,
-            alt: `Carousel image ${i + 1}`,
-          })));
-        }
+        setSlides(items.map((item, i) => ({
+          img: `/carousel/${item.filename}`,
+          alt: `Carousel image ${i + 1}`,
+        })));
       })
-      .catch(() => { /* keep fallback slides on error */ });
+      .catch(() => setSlides([]));
   }, []);
 
   // Auto-advance every 5 s
   useEffect(() => {
-    const timer = setInterval(() => setCurrent((c) => (c + 1) % slides.length), 5000);
+    if (count < 2) return;
+    const timer = setInterval(() => setCurrent((c) => (c + 1) % count), 5000);
     return () => clearInterval(timer);
-  }, [slides.length]);
+  }, [count]);
 
-  const prev = () => setCurrent((c) => (c - 1 + slides.length) % slides.length);
-  const next = () => setCurrent((c) => (c + 1) % slides.length);
+  const prev = () => setCurrent((c) => (c - 1 + count) % count);
+  const next = () => setCurrent((c) => (c + 1) % count);
+  const markSettled = (i: number) => setSettled((s) => (s.has(i) ? s : new Set(s).add(i)));
 
   return (
     <main className="bg-background text-foreground">
-      {/* Hero carousel — fade transition */}
-      <section className="relative bg-background">
-        {/* Fixed-ratio container — all images absolutely stacked, true cross-fade */}
-        <div className="relative w-full" style={{ aspectRatio: "1920/650" }}>
-          {slides.map((s, i) => (
-            <img
-              key={i}
-              src={s.img}
-              alt={s.alt}
-              width={1920}
-              height={650}
-              loading={i === 0 ? "eager" : "lazy"}
-              className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-700 ease-in-out ${
-                i === current ? "opacity-100" : "opacity-0"
-              }`}
-            />
-          ))}
-        </div>
+      {/* Hero carousel — fade transition (hidden when there are no banner images) */}
+      {(slides === null || count > 0) && (
+        <section className="relative bg-background">
+          {/* Fixed-ratio container — all images absolutely stacked, true cross-fade */}
+          <div className="relative w-full overflow-hidden" style={{ aspectRatio: "1920/650" }}>
+            {/* Soft placeholder until the current banner has loaded — no text, no stale images */}
+            {!settled.has(current) && <div className="absolute inset-0 animate-pulse bg-muted/60" aria-hidden="true" />}
 
-        {/* Prev / Next buttons */}
-        <button
-          onClick={prev}
-          aria-label="Previous slide"
-          className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full border border-border bg-background/80 p-1.5 text-foreground hover:bg-accent sm:left-6"
-        >
-          <ChevronLeft className="size-5" />
-        </button>
-        <button
-          onClick={next}
-          aria-label="Next slide"
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full border border-border bg-background/80 p-1.5 text-foreground hover:bg-accent sm:right-6"
-        >
-          <ChevronRight className="size-5" />
-        </button>
+            {slides?.map((s, i) => (
+              <img
+                key={i}
+                src={s.img}
+                alt={s.alt}
+                width={1920}
+                height={650}
+                loading={i === 0 ? "eager" : "lazy"}
+                onLoad={() => markSettled(i)}
+                onError={() => markSettled(i)}
+                className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-700 ease-in-out ${
+                  i === current && settled.has(i) ? "opacity-100" : "opacity-0"
+                }`}
+              />
+            ))}
 
-        {/* Dot indicators */}
-        <div className="flex justify-center gap-2 py-4">
-          {slides.map((_, i) => (
-            <button
-              key={i}
-              aria-label={`Go to slide ${i + 1}`}
-              onClick={() => setCurrent(i)}
-              className={`h-2 rounded-full transition-all ${current === i ? "w-7 bg-primary" : "w-2 bg-border"}`}
-            />
-          ))}
-        </div>
-      </section>
+            {/* Dot indicators — on top of the banner */}
+            {count > 1 && (
+              <div className="absolute inset-x-0 bottom-2 z-10 flex justify-center sm:bottom-3">
+                <div className="flex items-center gap-2 rounded-full bg-black/30 px-3 py-1.5 backdrop-blur-sm">
+                  {slides?.map((_, i) => (
+                    <button
+                      key={i}
+                      aria-label={`Go to slide ${i + 1}`}
+                      onClick={() => setCurrent(i)}
+                      className={`h-2 rounded-full transition-all ${current === i ? "w-7 bg-primary" : "w-2 bg-white/80"}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Prev / Next buttons */}
+          {count > 1 && (
+            <>
+              <button
+                onClick={prev}
+                aria-label="Previous slide"
+                className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full border border-border bg-background/80 p-1.5 text-foreground hover:bg-accent sm:left-6"
+              >
+                <ChevronLeft className="size-5" />
+              </button>
+              <button
+                onClick={next}
+                aria-label="Next slide"
+                className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full border border-border bg-background/80 p-1.5 text-foreground hover:bg-accent sm:right-6"
+              >
+                <ChevronRight className="size-5" />
+              </button>
+            </>
+          )}
+        </section>
+      )}
 
       {/* Upcoming yatras CTA */}
       <section className="bg-accent/40 px-4 py-12 text-center sm:py-16">

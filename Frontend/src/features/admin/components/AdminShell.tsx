@@ -8,6 +8,7 @@ import {
   Menu,
   MountainSnow,
   Receipt,
+  ShieldCheck,
   Users,
   Youtube,
 } from "lucide-react";
@@ -23,6 +24,7 @@ const nav = [
   { to: "/admin224151/carousel", label: "Carousel Manager", icon: Images },
   { to: "/admin224151/youtube", label: "YouTube Links", icon: Youtube },
   { to: "/admin224151/maintenance", label: "Dam Page", icon: Construction },
+  { to: "/admin224151/sessions", label: "Sessions", icon: ShieldCheck },
 ] as const;
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowDownWideNarrow, MessageCircle, Receipt, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { authFetch } from "@/lib/auth-client";
 import { DashboardShell } from "@/components/DashboardShell";
 import { useYatraAuth } from "@/lib/yatra-auth";
 import { BASE_URL } from "@/lib/api";
@@ -50,7 +51,7 @@ function Transactions() {
     if (!user) return;
     async function loadBookings() {
       try {
-        const res = await fetch(`${BASE_URL}/registrations/user/${user!.user_id}/bookings`);
+        const res = await authFetch(`${BASE_URL}/registrations/user/${user!.user_id}/bookings`);
         if (res.ok) {
           const data = await res.json();
           setBookings(data);
@@ -88,13 +89,13 @@ function Transactions() {
             <div className="mt-10 flex justify-center">
               <Loader2 className="size-8 animate-spin text-primary" />
             </div>
-          ) : bookings.filter((b) => b.payment_status === "paid").length === 0 ? (
+          ) : bookings.filter((b) => b.payment_status === "paid" || b.payment_status === "partial_paid").length === 0 ? (
             <div className="mt-10 rounded-2xl bg-card p-10 text-center shadow-soft">
               <p className="text-muted-foreground">No paid bookings found.</p>
             </div>
           ) : (
             <ul className="mt-6 space-y-5">
-              {bookings.filter((b) => b.payment_status === "paid").map((t) => {
+              {bookings.filter((b) => b.payment_status === "paid" || b.payment_status === "partial_paid").map((t) => {
                 const yatraYear = new Date(t.yatra_start_date).getFullYear();
                 const age = ageAtStart(t.passenger_yob, yatraYear);
 
@@ -105,6 +106,8 @@ function Transactions() {
                 let badgeColor = "bg-muted text-muted-foreground";
                 if (t.payment_status === "paid") {
                   badgeColor = "bg-green-100 text-green-800";
+                } else if (t.payment_status === "partial_paid") {
+                  badgeColor = "bg-amber-100 text-amber-800";
                 } else if (t.payment_status === "not_paid") {
                   badgeColor = "bg-red-100 text-red-800";
                 } else if (t.payment_status === "interested") {
@@ -141,7 +144,9 @@ function Transactions() {
                         <Row label="Concession" value={concession} />
                         <Row label="Journey Date" value={new Date(t.yatra_start_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" })} />
                         <div className="mt-1 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-2 border-t border-border pt-2">
-                          <dt className="text-sm font-bold">Total</dt>
+                          <dt className="text-sm font-bold">
+                            {t.payment_status === "partial_paid" ? "Paid Online (20%) — Rest in Cash" : "Total"}
+                          </dt>
                           <dd className="text-right text-base font-extrabold text-primary">₹ {t.amount_paid.toLocaleString("en-IN")}</dd>
                         </div>
                       </dl>

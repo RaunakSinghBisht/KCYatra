@@ -2,14 +2,26 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings
 
+# Public placeholder — the app refuses to start in production while this is still in use.
+DEFAULT_SECRET_KEY = "NAHY6Bf3FhOryYWCGqpMAdgWrUHIXbnPV5kpmmYKeZP"
+
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost:5432/kcyatra_db"
-    SECRET_KEY: str = "NAHY6Bf3FhOryYWCGqpMAdgWrUHIXbnPV5kpmmYKeZP"
+    SECRET_KEY: str = DEFAULT_SECRET_KEY  # signs the JWTs
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     ENV: str = "development"
     DEBUG: bool = True
+
+    # ── Authentication ────────────────────────────────────────────────────────
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 20
+    # Refresh-token lifetime, counted from the last use (each refresh extends it).
+    REFRESH_TOKEN_EXPIRE_DAYS_USER: int = 7
+    REFRESH_TOKEN_EXPIRE_DAYS_ADMIN: int = 1
+    # Seconds a just-rotated refresh token is still accepted (two tabs refreshing at once).
+    REFRESH_REUSE_GRACE_SECONDS: int = 30
+    # Refresh-cookie "Secure" flag. Unset = secure only when ENV=production.
+    AUTH_COOKIE_SECURE: bool | None = None
 
     # Allowed browser origins, e.g. CORS_ORIGINS=["https://yourdomain.com"] in .env
     CORS_ORIGINS: list[str] = []

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { authFetch } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Compass, Loader2, MessageCircle } from "lucide-react";
@@ -61,7 +62,7 @@ function SelectYatra() {
   useEffect(() => {
     async function fetchYatras() {
       try {
-        const res = await fetch(`${BASE_URL}/yatras/`);
+        const res = await authFetch(`${BASE_URL}/yatras/`);
         if (!res.ok) throw new Error(`Server error (${res.status})`);
         const data: Yatra[] = await res.json();
         setYatras(data);

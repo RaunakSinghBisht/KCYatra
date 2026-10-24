@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { ArrowLeft, Construction, Loader2, Phone, ScrollText, ShieldCheck } from "lucide-react";
-import { useYatraAuth } from "@/lib/yatra-auth";
+import { useYatraAuth, type UserLogin } from "@/lib/yatra-auth";
 import { BASE_URL } from "@/lib/api";
 import { TERMS_CLAUSES } from "@/lib/terms";
 
@@ -61,7 +61,7 @@ function AuthPage() {
   const [damPage, setDamPage] = useState<DamPageData | null>(null);
   const [damChecked, setDamChecked] = useState(false);
   const [siteSettings, setSiteSettings] = useState<DamPageData | null>(null);
-  const [pendingUser, setPendingUser] = useState<{ user_id: number; phone: string } | null>(null);
+  const [pendingUser, setPendingUser] = useState<UserLogin | null>(null);
   const [showTerms, setShowTerms] = useState(false);
 
   // bypass hint received from backend on /otp/send
@@ -104,6 +104,7 @@ function AuthPage() {
         const res = await fetch(`${BASE_URL}/otp/direct-login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include", // lets the browser store the refresh-token cookie
           body: JSON.stringify({ phone }),
         });
         const data = await res.json();
@@ -111,7 +112,12 @@ function AuthPage() {
           toast.error(data.detail ?? "Could not sign in. Please try again.");
           return;
         }
-        setPendingUser({ user_id: data.user_id, phone: data.phone });
+        setPendingUser({
+          user_id: data.user_id,
+          phone: data.phone,
+          access_token: data.access_token,
+          expires_in: data.expires_in,
+        });
         setShowTerms(true);
       } catch {
         toast.error("Network error. Check your connection and try again.");
@@ -164,6 +170,7 @@ function AuthPage() {
       const res = await fetch(`${BASE_URL}/otp/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include", // lets the browser store the refresh-token cookie
         body: JSON.stringify({ phone, otp: code }),
       });
 
@@ -175,9 +182,13 @@ function AuthPage() {
         return;
       }
 
-      // data: { verified, user_id, phone }
-      // Hold credentials, show T&C before signing in
-      setPendingUser({ user_id: data.user_id, phone: data.phone });
+      // Hold the session, show T&C before signing in
+      setPendingUser({
+        user_id: data.user_id,
+        phone: data.phone,
+        access_token: data.access_token,
+        expires_in: data.expires_in,
+      });
       setShowTerms(true);
     } catch {
       toast.error("Network error. Check your connection and try again.");
@@ -197,7 +208,7 @@ function AuthPage() {
 
   const agreeToTerms = () => {
     if (!pendingUser) return;
-    signIn({ user_id: pendingUser.user_id, phone: pendingUser.phone, name: pendingUser.phone });
+    signIn(pendingUser);
     toast.success("Welcome to Krishna Conscious Yatra!");
     setShowTerms(false);
     navigate({ to: "/select-yatra" });

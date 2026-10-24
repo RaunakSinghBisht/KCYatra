@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { SessionsPanel } from "@/components/SessionsPanel";
+import { authFetch } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import {
   BadgeCheck,
-  LogOut,
   Pencil,
   Trash2,
   UserRound,
@@ -41,7 +42,8 @@ export const Route = createFileRoute("/personal-details")({
 });
 
 function PersonalDetails() {
-  const { user, signOut } = useYatraAuth();
+  const { user, signOut, signOutAll } = useYatraAuth();
+  const navigate = useNavigate();
   const [passengers, setPassengers] = useState<Passenger[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -61,7 +63,7 @@ function PersonalDetails() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/passengers/user/${user!.user_id}`);
+      const res = await authFetch(`${BASE_URL}/passengers/user/${user!.user_id}`);
       if (!res.ok) throw new Error(`Server error (${res.status})`);
       const data: Passenger[] = await res.json();
       setPassengers(data);
@@ -85,7 +87,7 @@ function PersonalDetails() {
   async function handleDeleteRequest(id: number, name: string) {
     setDeletingId(id);
     try {
-      const res = await fetch(`${BASE_URL}/passengers/${id}/has-registrations`);
+      const res = await authFetch(`${BASE_URL}/passengers/${id}/has-registrations`);
       if (!res.ok) throw new Error("Could not check registrations");
       const data = await res.json();
       setDeleteDialogData({ id, name, hasRegistrations: data.has_registrations });
@@ -101,7 +103,7 @@ function PersonalDetails() {
     const { id, name } = deleteDialogData;
     setDeletingId(id); // Use the same loader id for the button inside dialog
     try {
-      const res = await fetch(`${BASE_URL}/passengers/${id}`, { method: "DELETE" });
+      const res = await authFetch(`${BASE_URL}/passengers/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`Server error (${res.status})`);
       setPassengers((prev) => prev.filter((x) => x.id !== id));
       toast.success(`${name} removed.`);
@@ -228,6 +230,15 @@ function PersonalDetails() {
             to Book Your Seat
           </p>
 
+          <div className="mt-6">
+            <SessionsPanel
+              realm="user"
+              onLogout={signOut}
+              onLogoutAll={signOutAll}
+              afterLogoutAll={() => navigate({ to: "/auth" })}
+            />
+          </div>
+
           {/* Contact Us */}
           <div className="mt-6 flex items-center justify-between gap-3 rounded-2xl border border-border bg-card/60 px-4 py-3">
             <span className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
@@ -260,10 +271,6 @@ function PersonalDetails() {
               </a>
             </div>
           </div>
-
-          <Button variant="outline" className="mt-6 w-full font-bold sm:w-auto" onClick={signOut}>
-            <LogOut className="size-4" /> Logout
-          </Button>
 
           <Dialog open={!!deleteDialogData} onOpenChange={(open) => !open && setDeleteDialogData(null)}>
             <DialogContent>

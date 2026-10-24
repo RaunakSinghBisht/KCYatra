@@ -45,3 +45,7 @@ class OtpVerifyResponse(BaseModel):
     # Populated on success — used by frontend to sign the user in
     user_id: int | None = None
     phone: str | None = None
+    # Access token for API calls; the refresh token is set as an HttpOnly cookie.
+    access_token: str | None = None
+    token_type: str = "bearer"
+    expires_in: int | None = None

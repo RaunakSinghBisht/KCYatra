@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { UserPlus, X } from "lucide-react";
+import { authFetch } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +30,7 @@ type Yatra = {
 
 type Registration = { passenger_id: number; yatra_id: number };
 
-const PAYMENT_STATUSES = ["interested", "paid", "not_paid", "cash"];
+const PAYMENT_STATUSES = ["interested", "paid", "partial_paid", "not_paid", "cash"];
 const PAYMENT_METHODS = ["cash", "online"];
 
 const BLANK = {
@@ -69,8 +70,8 @@ export function ManualBookingDialog({ onCreated }: { onCreated: () => void }) {
   useEffect(() => {
     if (!open) return;
     Promise.all([
-      fetch(`${BASE_URL}/passengers/`).then((r) => r.json()),
-      fetch(`${BASE_URL}/yatras/`).then((r) => r.json()),
+      authFetch(`${BASE_URL}/passengers/`).then((r) => r.json()),
+      authFetch(`${BASE_URL}/yatras/`).then((r) => r.json()),
     ])
       .then(([pList, yList]) => {
         setPassengers(pList as Passenger[]);
@@ -82,7 +83,7 @@ export function ManualBookingDialog({ onCreated }: { onCreated: () => void }) {
   // When yatra changes, load its registrations to filter out already-booked passengers
   useEffect(() => {
     if (!form.yatraId) { setRegistrations([]); return; }
-    fetch(`${BASE_URL}/registrations/yatra/${form.yatraId}`)
+    authFetch(`${BASE_URL}/registrations/yatra/${form.yatraId}`)
       .then((r) => r.ok ? r.json() : [])
       .then((list) => setRegistrations(list as Registration[]))
       .catch(() => setRegistrations([]));
@@ -148,7 +149,7 @@ export function ManualBookingDialog({ onCreated }: { onCreated: () => void }) {
         body.special_assistance = form.specialAssistance || "Not Required";
       }
 
-      const res = await fetch(`${BASE_URL}/registrations/admin-manual`, {
+      const res = await authFetch(`${BASE_URL}/registrations/admin-manual`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

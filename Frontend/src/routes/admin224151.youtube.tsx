@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Eye, Plus, Trash2, Youtube } from "lucide-react";
+import { authFetch } from "@/lib/auth-client";
 import { AdminShell } from "@/features/admin/components/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,13 +28,13 @@ const MAX_LINKS = 3;
 type YTLink = { id: number; url: string; position: number };
 
 async function fetchLinks(): Promise<YTLink[]> {
-  const res = await fetch(`${BASE_URL}/youtube-links/`);
+  const res = await authFetch(`${BASE_URL}/youtube-links/`);
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
 async function saveLinks(urls: string[]): Promise<YTLink[]> {
-  const res = await fetch(`${BASE_URL}/youtube-links/`, {
+  const res = await authFetch(`${BASE_URL}/youtube-links/`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ urls: urls.filter((u) => u.trim()) }),

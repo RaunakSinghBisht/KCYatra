@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { authFetch } from "@/lib/auth-client";
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -135,7 +136,7 @@ export function AddPassengerDialog({ trigger, userId, passenger, onSuccess }: Pr
         ? `${BASE_URL}/passengers/${passenger!.id}`
         : `${BASE_URL}/passengers/`;
 
-      const res = await fetch(url, {
+      const res = await authFetch(url, {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -247,7 +248,7 @@ export function AddPassengerDialog({ trigger, userId, passenger, onSuccess }: Pr
             {ability === "Required" && (
               <Input
                 className="h-12 rounded-2xl"
-                placeholder="Please specify your requirement (e.g., Wheelchair)"
+                placeholder="Please specify your Medical Condition / Requirements"
                 value={abilityDetails}
                 onChange={(e) => {
                   if (e.target.value.length > 200) {

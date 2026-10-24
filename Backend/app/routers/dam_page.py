@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.dam_page import get_dam_page, update_dam_page
+from app.dependencies.auth import require_admin
 from app.dependencies.db import get_db
 from app.schemas.dam_page import DamPageResponse, DamPageUpdate
 
@@ -23,6 +24,7 @@ async def get_dam_page_route(
     "/",
     response_model=DamPageResponse,
     summary="Update Dam Page settings (partial update)",
+    dependencies=[Depends(require_admin)],
 )
 async def update_dam_page_route(
     payload: DamPageUpdate,

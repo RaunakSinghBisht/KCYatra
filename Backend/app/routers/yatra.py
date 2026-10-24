@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.crud.yatra import create_yatra, delete_yatra, get_all_yatras, get_yatra_by_id, update_yatra
+from app.dependencies.auth import get_principal, require_admin
 from app.dependencies.db import get_db
 from app.schemas.yatra import YatraCreate, YatraResponse, YatraUpdate
 
@@ -63,6 +64,7 @@ async def _save_image(image: UploadFile) -> str:
     response_model=YatraResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new Yatra listing",
+    dependencies=[Depends(require_admin)],
 )
 async def create_yatra_route(
     title: str = Form(...),
@@ -130,6 +132,7 @@ async def create_yatra_route(
     "/",
     response_model=list[YatraResponse],
     summary="List all Yatras",
+    dependencies=[Depends(get_principal)],
 )
 async def list_yatras(
     db: AsyncSession = Depends(get_db),
@@ -141,6 +144,7 @@ async def list_yatras(
     "/{yatra_id}",
     response_model=YatraResponse,
     summary="Get a single Yatra by ID",
+    dependencies=[Depends(get_principal)],
 )
 async def get_yatra(
     yatra_id: int,
@@ -159,6 +163,7 @@ async def get_yatra(
     "/{yatra_id}",
     response_model=YatraResponse,
     summary="Update a Yatra (replaces image if provided, deletes old)",
+    dependencies=[Depends(require_admin)],
 )
 async def update_yatra_route(
     yatra_id: int,
@@ -230,6 +235,7 @@ async def update_yatra_route(
     "/{yatra_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a Yatra and its banner image",
+    dependencies=[Depends(require_admin)],
 )
 async def delete_yatra_route(
     yatra_id: int,

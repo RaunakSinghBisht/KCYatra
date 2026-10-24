@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, GripVertical, ImagePlus, Trash2 } from "lucide-react";
+import { authFetch } from "@/lib/auth-client";
 import { AdminShell } from "@/features/admin/components/AdminShell";
 import { Button } from "@/components/ui/button";
 import { BASE_URL } from "@/lib/api";
@@ -26,7 +27,7 @@ function imgUrl(filename: string) {
 }
 
 async function apiFetch(path: string, init?: RequestInit) {
-  const res = await fetch(`${BASE_URL}${path}`, init);
+  const res = await authFetch(`${BASE_URL}${path}`, init);
   if (!res.ok && res.status !== 204) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail ?? "Request failed");

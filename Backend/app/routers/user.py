@@ -2,17 +2,20 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.user import DuplicateUserError, create_user, get_user_by_id
+from app.dependencies.auth import Principal, ensure_owner, get_principal, require_admin
 from app.dependencies.db import get_db
 from app.schemas.user import UserCreate, UserResponse
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
+# Customers are created by OTP login; creating one by hand is an admin task.
 @router.post(
     "/",
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Register a new user account",
+    dependencies=[Depends(require_admin)],
 )
 async def register_user(
     payload: UserCreate,
@@ -40,8 +43,10 @@ async def register_user(
 )
 async def get_user(
     user_id: int,
+    principal: Principal = Depends(get_principal),
     db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
+    ensure_owner(principal, user_id)
     user = await get_user_by_id(db, user_id)
     if not user:
         raise HTTPException(

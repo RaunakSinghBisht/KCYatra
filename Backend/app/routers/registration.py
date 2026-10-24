@@ -25,6 +25,7 @@ from app.crud.registration import (
     update_registration_packages,
     mark_registrations_as_cash,
 )
+from app.dependencies.auth import Principal, ensure_owner, get_principal, require_admin, require_user
 from app.dependencies.db import get_db
 from app.schemas.registration import (
     AdminManualBookingCreate,
@@ -42,10 +43,19 @@ from app.schemas.registration import (
 router = APIRouter(prefix="/registrations", tags=["Registrations"])
 
 
+async def _owned_passenger(db: AsyncSession, passenger_id: int, principal: Principal) -> PassengerModel:
+    passenger = await db.get(PassengerModel, passenger_id)
+    if passenger is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Passenger {passenger_id} not found.")
+    ensure_owner(principal, passenger.user_id)
+    return passenger
+
+
 @router.get(
     "/",
     response_model=list[AdminRegistrationResponse],
     summary="List all registrations (admin view with joined passenger/yatra data)",
+    dependencies=[Depends(require_admin)],
 )
 async def list_all_registrations(
     db: AsyncSession = Depends(get_db),
@@ -58,6 +68,7 @@ async def list_all_registrations(
     "/{registration_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Hard-delete a registration (admin)",
+    dependencies=[Depends(require_admin)],
 )
 async def delete_registration_route(
     registration_id: int,
@@ -75,6 +86,7 @@ async def delete_registration_route(
     "/{registration_id}",
     response_model=RegistrationResponse,
     summary="Admin update of any editable registration field",
+    dependencies=[Depends(require_admin)],
 )
 async def admin_update_registration_route(
     registration_id: int,
@@ -104,6 +116,7 @@ async def admin_update_registration_route(
     response_model=RegistrationResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Admin: create passenger (if needed) + registration, bypasses yatra status check",
+    dependencies=[Depends(require_admin)],
 )
 async def admin_manual_booking(
     payload: AdminManualBookingCreate,
@@ -130,8 +143,11 @@ async def admin_manual_booking(
 )
 async def register_passenger_for_yatra(
     payload: RegistrationCreate,
+    principal: Principal = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ) -> RegistrationResponse:
+    await _owned_passenger(db, payload.passenger_id, principal)
+    payload = payload.model_copy(update={"user_id": principal.user_id})
     try:
         registration = await create_registration(db, payload)
         return registration
@@ -160,8 +176,18 @@ async def register_passenger_for_yatra(
 async def patch_registration_packages(
     registration_id: int,
     payload: RegistrationPackageUpdate,
+    principal: Principal = Depends(get_principal),
     db: AsyncSession = Depends(get_db),
 ) -> RegistrationResponse:
+    existing = await db.get(Registration, registration_id)
+    if existing is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Registration {registration_id} not found.")
+    ensure_owner(principal, existing.user_id)
+    if not principal.is_admin and existing.payment_status in ("paid", "partial_paid"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Packages can't be changed after a payment has been made. Please contact the organizer.",
+        )
     reg = await update_registration_packages(db, registration_id, payload)
     if not reg:
         raise HTTPException(
@@ -179,8 +205,10 @@ async def patch_registration_packages(
 async def lookup_registration(
     passenger_id: int,
     yatra_id: int,
+    principal: Principal = Depends(get_principal),
     db: AsyncSession = Depends(get_db),
 ) -> RegistrationResponse | None:
+    await _owned_passenger(db, passenger_id, principal)
     return await get_registration_by_passenger_and_yatra(db, passenger_id, yatra_id)
 
 
@@ -192,8 +220,10 @@ async def lookup_registration(
 async def list_registrations_by_user_yatra(
     user_id: int = Query(...),
     yatra_id: int = Query(...),
+    principal: Principal = Depends(get_principal),
     db: AsyncSession = Depends(get_db),
 ) -> list[RegistrationWithPassengerResponse]:
+    ensure_owner(principal, user_id)
     rows = (
         await db.execute(
             select(Registration, PassengerModel)
@@ -236,6 +266,7 @@ async def list_registrations_by_user_yatra(
     "/yatra/{yatra_id}",
     response_model=list[RegistrationResponse],
     summary="List all registrations for a specific Yatra",
+    dependencies=[Depends(require_admin)],
 )
 async def list_registrations_by_yatra(
     yatra_id: int,
@@ -251,8 +282,10 @@ async def list_registrations_by_yatra(
 )
 async def list_user_bookings(
     user_id: int,
+    principal: Principal = Depends(get_principal),
     db: AsyncSession = Depends(get_db),
 ) -> list[BookingResponse]:
+    ensure_owner(principal, user_id)
     from app.crud.registration import get_user_bookings
     return await get_user_bookings(db, user_id)
 
@@ -264,8 +297,10 @@ async def list_user_bookings(
 )
 async def list_registrations_by_user(
     user_id: int,
+    principal: Principal = Depends(get_principal),
     db: AsyncSession = Depends(get_db),
 ) -> list[RegistrationResponse]:
+    ensure_owner(principal, user_id)
     return await get_registrations_by_user(db, user_id)
 
 
@@ -276,8 +311,10 @@ async def list_registrations_by_user(
 )
 async def list_registrations_by_passenger(
     passenger_id: int,
+    principal: Principal = Depends(get_principal),
     db: AsyncSession = Depends(get_db),
 ) -> list[RegistrationResponse]:
+    await _owned_passenger(db, passenger_id, principal)
     return await get_registrations_by_passenger(db, passenger_id)
 
 
@@ -288,6 +325,7 @@ async def list_registrations_by_passenger(
 )
 async def mark_cash_payment(
     payload: RegistrationCashRequest,
+    principal: Principal = Depends(get_principal),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     if not payload.registration_ids:
@@ -295,6 +333,14 @@ async def mark_cash_payment(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No registrations selected.",
         )
+
+    regs = (
+        await db.scalars(select(Registration).where(Registration.id.in_(payload.registration_ids)))
+    ).all()
+    if len(regs) != len(set(payload.registration_ids)):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registration not found.")
+    for reg in regs:
+        ensure_owner(principal, reg.user_id)
 
     updated_ids = await mark_registrations_as_cash(db, payload.registration_ids)
     return {"message": f"Successfully marked {len(updated_ids)} registrations for cash payment."}

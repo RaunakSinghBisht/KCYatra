@@ -12,6 +12,7 @@ import {
   Send,
   Trash2,
 } from "lucide-react";
+import { authFetch } from "@/lib/auth-client";
 import { AdminShell, ExportButtons } from "@/features/admin/components/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,7 +68,7 @@ type UpdateNoticePayload = Partial<CreateNoticePayload>;
 
 // ── API Helpers ────────────────────────────────────────────────────────────────
 async function fetchNotices(): Promise<NoticeRow[]> {
-  const res = await fetch(`${BASE_URL}/notices/`);
+  const res = await authFetch(`${BASE_URL}/notices/`);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail ?? "Failed to fetch notices");
@@ -76,7 +77,7 @@ async function fetchNotices(): Promise<NoticeRow[]> {
 }
 
 async function createNoticeApi(payload: CreateNoticePayload): Promise<NoticeRow> {
-  const res = await fetch(`${BASE_URL}/notices/`, {
+  const res = await authFetch(`${BASE_URL}/notices/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -89,7 +90,7 @@ async function createNoticeApi(payload: CreateNoticePayload): Promise<NoticeRow>
 }
 
 async function updateNoticeApi(id: number, payload: UpdateNoticePayload): Promise<NoticeRow> {
-  const res = await fetch(`${BASE_URL}/notices/${id}`, {
+  const res = await authFetch(`${BASE_URL}/notices/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -102,7 +103,7 @@ async function updateNoticeApi(id: number, payload: UpdateNoticePayload): Promis
 }
 
 async function deleteNoticeApi(id: number): Promise<void> {
-  const res = await fetch(`${BASE_URL}/notices/${id}`, {
+  const res = await authFetch(`${BASE_URL}/notices/${id}`, {
     method: "DELETE",
   });
   if (!res.ok) {

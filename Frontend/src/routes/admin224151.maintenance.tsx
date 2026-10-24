@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Construction, Eye } from "lucide-react";
+import { authFetch } from "@/lib/auth-client";
 import { AdminShell } from "@/features/admin/components/AdminShell";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,7 +33,7 @@ const DEFAULT: DamPageSettings = {
 };
 
 async function apiFetch(body: Partial<DamPageSettings>) {
-  const res = await fetch(`${BASE_URL}/dam-page/`, {
+  const res = await authFetch(`${BASE_URL}/dam-page/`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -50,7 +51,7 @@ function AdminMaintenance() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    fetch(`${BASE_URL}/dam-page/`)
+    authFetch(`${BASE_URL}/dam-page/`)
       .then((r) => r.ok ? r.json() : Promise.reject())
       .then((data: DamPageSettings) => setSettings({ enabled: data.enabled, title: data.title, description: data.description }))
       .catch(() => toast.error("Failed to load Dam Page settings"));

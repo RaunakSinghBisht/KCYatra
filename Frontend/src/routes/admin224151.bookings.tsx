@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Search, Trash2 } from "lucide-react";
+import { authFetch } from "@/lib/auth-client";
 import { AdminShell, ExportButtons, StatCard } from "@/features/admin/components/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -109,7 +110,31 @@ function toExportRow(r: Registration, i: number) {
 
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
-const PAYMENT_STATUSES = ["interested", "paid", "not_paid", "cash"];
+// The status filter combines payment status and method ("cash" is a method, not a status).
+const STATUS_FILTERS: { value: string; label: string; match: (r: Registration) => boolean }[] = [
+  { value: "interested", label: "Interested", match: (r) => r.paymentStatus === "interested" },
+  {
+    value: "online_paid",
+    label: "Online • Paid",
+    match: (r) => r.paymentStatus === "paid" && r.paymentMethod === "online",
+  },
+  {
+    value: "cash_partial",
+    label: "Cash • Partial Paid (20% Paid)",
+    match: (r) => r.paymentStatus === "partial_paid",
+  },
+  {
+    value: "cash_paid",
+    label: "Cash • Paid (100% Paid)",
+    match: (r) => r.paymentStatus === "paid" && r.paymentMethod === "cash",
+  },
+  // "not_paid" only ever came from choosing cash, so it is matched by status alone.
+  {
+    value: "cash_not_paid",
+    label: "Cash • Not Paid (0% Paid)",
+    match: (r) => r.paymentStatus === "not_paid",
+  },
+];
 
 type YatraOption = { id: number; title: string };
 
@@ -126,8 +151,8 @@ function AdminBookings() {
   const load = async () => {
     try {
       const [regRes, yatraRes] = await Promise.all([
-        fetch(`${BASE_URL}/registrations/`),
-        fetch(`${BASE_URL}/yatras/`),
+        authFetch(`${BASE_URL}/registrations/`),
+        authFetch(`${BASE_URL}/yatras/`),
       ]);
       if (!regRes.ok) throw new Error(await regRes.text());
       const data = (await regRes.json()) as Record<string, unknown>[];
@@ -150,9 +175,10 @@ function AdminBookings() {
     () =>
       registrations.filter((r) => {
         const text = `${r.passengerName} ${r.transactionId ?? ""} ${r.yatraTitle}`.toLowerCase();
+        const statusRule = STATUS_FILTERS.find((f) => f.value === statusFilter);
         return (
           text.includes(q.toLowerCase()) &&
-          (statusFilter === "all" || r.paymentStatus === statusFilter) &&
+          (!statusRule || statusRule.match(r)) &&
           (yatraFilter === "all" || String(r.yatraId) === yatraFilter)
         );
       }),
@@ -167,7 +193,7 @@ function AdminBookings() {
     const { id, passengerName: name } = deleting;
     setIsDeleting(true);
     try {
-      const res = await fetch(`${BASE_URL}/registrations/${id}`, { method: "DELETE" });
+      const res = await authFetch(`${BASE_URL}/registrations/${id}`, { method: "DELETE" });
       if (!res.ok && res.status !== 204) throw new Error(await res.text());
       setRegistrations((prev) => prev.filter((r) => r.id !== id));
       toast.success(`Registration for ${name} deleted`);
@@ -209,8 +235,8 @@ function AdminBookings() {
           <SelectTrigger><SelectValue placeholder="Payment status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
-            {PAYMENT_STATUSES.map((s) => (
-              <SelectItem key={s} value={s}>{s}</SelectItem>
+            {STATUS_FILTERS.map((f) => (
+              <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
