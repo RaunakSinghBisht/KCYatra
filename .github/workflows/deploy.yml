@@ -1,0 +1,74 @@
+name: Deploy
+
+# Runs only when a version tag such as v1.0.1 is pushed:
+#     git tag v1.0.1
+#     git push origin v1.0.1
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+# Never run two deploys at once; a second tag waits for the first to finish.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check that it builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Backend — install packages and load the app
+        working-directory: Backend
+        run: |
+          pip install -r requirements.txt
+          python -c "import app.main"
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Frontend — install packages and build
+        working-directory: Frontend
+        run: |
+          bun install --frozen-lockfile
+          npm run build
+
+  deploy:
+    name: Deploy to the VPS
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Deploy ${{ github.ref_name }}
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          ssh -i ~/.ssh/id_deploy \
+            -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$VPS_USER@$VPS_HOST" 'bash -s' -- "$TAG" < deploy/deploy.sh
