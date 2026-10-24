@@ -14,7 +14,7 @@ const clientLinks = [
 
 const adminLinks = [
   { to: "/", label: "Home" },
-  { to: "/admin224151/users", label: "Dashboard" },
+  { to: "/dashboard", label: "Dashboard" },
 ] as const;
 
 const adminGuestLinks = [{ to: "/", label: "Home" }] as const;
@@ -44,7 +44,7 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-border/70 bg-background/85 backdrop-blur">
       <div className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6">
-        <Link to={isAdminArea && admin ? "/admin224151/users" : "/"} className="flex w-fit items-center gap-2">
+        <Link to="/" className="flex w-fit items-center gap-2">
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-gradient-primary text-primary-foreground shadow-glow">
             <MountainSnow className="size-5" />
           </span>
@@ -61,7 +61,7 @@ export function SiteHeader() {
               {...(isAdminArea ? {} : { activeProps: { className: "bg-accent text-accent-foreground" } })}
               className={cn(
                 "rounded-lg px-3 py-2 text-sm font-semibold transition-colors hover:text-foreground",
-                isAdminArea && l.to !== "/" ? "bg-accent text-accent-foreground" : "text-muted-foreground",
+                "text-muted-foreground",
               )}
             >
               {l.label}

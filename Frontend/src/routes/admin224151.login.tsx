@@ -57,13 +57,14 @@ function AdminLogin() {
 
         <div className="mt-6 space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="admin-email">Email</Label>
+            <Label htmlFor="admin-email">Username</Label>
             <Input
               id="admin-email"
-              type="email"
+              type="text"
+              autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Admin email"
+              placeholder="Admin username"
               className="h-12"
             />
           </div>

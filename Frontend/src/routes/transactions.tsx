@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ArrowDownWideNarrow, MessageCircle, Receipt, Loader2 } from "lucide-react";
+import { MessageCircle, Receipt, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { authFetch } from "@/lib/auth-client";
 import { DashboardShell } from "@/components/DashboardShell";
@@ -76,13 +76,6 @@ function Transactions() {
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">All your booked yatras and payments.</p>
             </div>
-            <button
-              type="button"
-              aria-label="Sort bookings"
-              className="shrink-0 rounded-full border border-border bg-card p-2.5 text-primary shadow-soft"
-            >
-              <ArrowDownWideNarrow className="size-5" />
-            </button>
           </div>
 
           {loading ? (
