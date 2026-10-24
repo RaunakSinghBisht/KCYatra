@@ -16,6 +16,7 @@ Endpoints:
     POST /otp/verify  — validate OTP, return user info for session
 """
 
+import hmac
 import logging
 import secrets
 import time
@@ -43,9 +44,9 @@ router = APIRouter(prefix="/otp", tags=["OTP"])
 
 _BYPASS_OTP = "123456"
 
-# ── In-memory OTP store: phone → (otp_code, expires_at_unix) ─────────────────
+# ── In-memory OTP store: phone → (otp_code, expires_at_unix, wrong_attempts) ──
 # Not shared across workers — use Redis for multi-process deployments.
-_otp_store: dict[str, tuple[str, float]] = {}
+_otp_store: dict[str, tuple[str, float, int]] = {}
 
 
 def _generate_otp() -> str:
@@ -55,12 +56,7 @@ def _generate_otp() -> str:
 
 def _store_otp(phone: str, otp: str) -> None:
     expires_at = time.time() + settings.OTP_TTL_SECONDS
-    _otp_store[phone] = (otp, expires_at)
-
-
-def _pop_otp(phone: str) -> tuple[str, float] | None:
-    """Retrieve and remove the OTP entry for this phone (one-time use)."""
-    return _otp_store.pop(phone, None)
+    _otp_store[phone] = (otp, expires_at, 0)
 
 
 # ── Rate limiting ─────────────────────────────────────────────────────────────
@@ -167,9 +163,9 @@ async def verify_otp(
         Still performs the real user lookup — phone must exist in the DB.
 
     Normal mode:
-        - OTP is consumed on first use (one-time).
+        - OTP is consumed once it is entered correctly (one-time).
+        - A wrong OTP returns 400 and the code stays valid for a retry, up to 3 wrong tries per code.
         - Expired OTPs return 400.
-        - Wrong OTP returns 400 (same message to prevent enumeration).
 
     On success, returns user_id, full_name, and phone so the frontend
     can hydrate the session without a separate /users/ call.
@@ -188,18 +184,31 @@ async def verify_otp(
         # Remove any pending real OTP so it isn't usable after bypass
         _otp_store.pop(payload.phone, None)
     else:
-        entry = _pop_otp(payload.phone)
+        entry = _otp_store.get(payload.phone)
 
         if entry is None:
             _reject_verify(payload.phone, ip, "No OTP found for this number. Please request a new one.")
 
-        stored_otp, expires_at = entry  # type: ignore[misc]
+        stored_otp, expires_at, attempts = entry  # type: ignore[misc]
 
         if time.time() > expires_at:
+            _otp_store.pop(payload.phone, None)
             _reject_verify(payload.phone, ip, "OTP has expired. Please request a new one.")
 
-        if payload.otp != stored_otp:
-            _reject_verify(payload.phone, ip, "Invalid OTP. Please try again.")
+        if not hmac.compare_digest(payload.otp, stored_otp):
+            # A wrong try does NOT use up the code — the user can type it again — but only a
+            # few tries are allowed per code, so it can't be guessed.
+            attempts += 1
+            left = LIMITS.otp_max_wrong_attempts_per_code - attempts
+            if left <= 0:
+                _otp_store.pop(payload.phone, None)
+                _reject_verify(payload.phone, ip, "Too many wrong attempts. Please request a new OTP.")
+            _otp_store[payload.phone] = (stored_otp, expires_at, attempts)
+            _reject_verify(
+                payload.phone, ip, f"Invalid OTP. {left} attempt{'s' if left != 1 else ''} left."
+            )
+
+        _otp_store.pop(payload.phone, None)  # correct: the code is now used up
 
     # A correct code clears this phone's failed-attempt count (the IP's count keeps running).
     limiter.clear(f"otp:verify:phone:{payload.phone}")

@@ -27,6 +27,7 @@ class Limits:
     otp_resend_cooldown_seconds = 30      # minimum gap between OTPs to the same phone
     otp_send_max_per_phone_per_hour = 5
     otp_send_max_per_ip_per_hour = 20
+    otp_max_wrong_attempts_per_code = 3   # a code is cancelled after this many wrong tries
     otp_verify_window_seconds = 10 * 60   # wrong / expired codes are counted over this window
     otp_verify_max_failures_per_phone = 5
     otp_verify_max_failures_per_ip = 30

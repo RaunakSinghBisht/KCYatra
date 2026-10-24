@@ -73,6 +73,6 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER }}
           TAG: ${{ github.ref_name }}
         run: |
-          ssh -v -i ~/.ssh/id_deploy \
+          ssh -i ~/.ssh/id_deploy \
             -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
             "$VPS_USER@$VPS_HOST" 'bash -s' -- "$TAG" < deploy/deploy.sh

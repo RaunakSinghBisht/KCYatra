@@ -230,15 +230,6 @@ function PersonalDetails() {
             to Book Your Seat
           </p>
 
-          <div className="mt-6">
-            <SessionsPanel
-              realm="user"
-              onLogout={signOut}
-              onLogoutAll={signOutAll}
-              afterLogoutAll={() => navigate({ to: "/auth" })}
-            />
-          </div>
-
           {/* Contact Us */}
           <div className="mt-6 flex items-center justify-between gap-3 rounded-2xl border border-border bg-card/60 px-4 py-3">
             <span className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
@@ -270,6 +261,16 @@ function PersonalDetails() {
                 <MessageCircle className="size-4" />
               </a>
             </div>
+          </div>
+
+          {/* Logged-in devices + logout */}
+          <div className="mt-6">
+            <SessionsPanel
+              realm="user"
+              onLogout={signOut}
+              onLogoutAll={signOutAll}
+              afterLogoutAll={() => navigate({ to: "/auth" })}
+            />
           </div>
 
           <Dialog open={!!deleteDialogData} onOpenChange={(open) => !open && setDeleteDialogData(null)}>

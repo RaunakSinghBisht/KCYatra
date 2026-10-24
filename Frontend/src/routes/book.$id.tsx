@@ -725,13 +725,9 @@ function PaymentDialog({
             </DialogContent>
           </Dialog>
 
-          {/* Pay by Cash: explains the 20% online advance. Closing it (X or OK) continues to the payment. */}
-          <Dialog open={cashNoticeOpen} onOpenChange={(o) => { if (!o) continueCashPayment(); }}>
-            <DialogContent
-              className="gap-0 rounded-3xl p-0 sm:max-w-md"
-              onInteractOutside={(e) => e.preventDefault()}
-              onEscapeKeyDown={(e) => e.preventDefault()}
-            >
+          {/* Pay by Cash: explains the 20% online advance. X / Esc / outside click go back; the button pays. */}
+          <Dialog open={cashNoticeOpen} onOpenChange={setCashNoticeOpen}>
+            <DialogContent className="gap-0 rounded-3xl p-0 sm:max-w-md">
               <DialogHeader className="border-b border-border px-6 py-4 text-left">
                 <DialogTitle className="pr-6 text-lg font-extrabold">Pay by Cash</DialogTitle>
                 <DialogDescription className="sr-only">Part of the payment is taken online for cash bookings</DialogDescription>
@@ -755,7 +751,7 @@ function PaymentDialog({
                   onClick={continueCashPayment}
                   className="mt-5 w-full rounded-full bg-gradient-primary py-3 text-base font-extrabold text-primary-foreground shadow-glow"
                 >
-                  OK, Pay 20% Online
+                  Pay ₹{advanceNow.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                 </button>
               </div>
             </DialogContent>
