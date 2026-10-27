@@ -54,7 +54,6 @@ MIN_ORDER_PAISE = 100  # Razorpay rejects orders below ₹1.00
 RAZORPAY_TIMEOUT_SECONDS = 15
 FREE_ORDER_PREFIX = "FREE_"
 FREE_PAYMENT_ID = "FREE_PAYMENT"
-CLOSED_STATUSES = {"closed", "close"}
 
 # "Pay by Cash" bookings pay this share online up front; the rest is collected in cash.
 CASH_ADVANCE_PERCENT = Decimal("0.20")
@@ -203,10 +202,10 @@ async def _build_items(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="20% has already been paid online for this passenger. The remaining amount is to be paid in cash.",
             )
-        if yatra.status in CLOSED_STATUSES:
+        if yatra.status != "open":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Registrations for this yatra are closed.",
+                detail="Registrations for this yatra are not open.",
             )
 
         base = _catalog_price(reg.hotel_package, yatra.hotel_packages, "Hotel") + _catalog_price(

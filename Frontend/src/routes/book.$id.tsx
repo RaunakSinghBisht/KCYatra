@@ -937,6 +937,13 @@ function BookYatra() {
           passengerRes.json() as Promise<Passenger[]>,
         ]);
 
+        // Only an open yatra can be booked (also blocks direct URL access).
+        if ((yatraData as { status?: string }).status !== "open") {
+          toast.error("Registrations are not open for this yatra.");
+          navigate({ to: "/select-yatra" });
+          return;
+        }
+
         // Registrations that include soft-deleted passengers
         type RegWithPax = {
           id: number; passenger_id: number;
@@ -1185,7 +1192,7 @@ function BookYatra() {
   return (
     <div className="min-h-dvh bg-muted/50 pb-24">
       {/* Top bar */}
-      <header className="sticky top-0 z-30 bg-gradient-primary px-4 py-4 text-primary-foreground shadow-glow">
+      <header className="sticky top-[61px] z-30 bg-gradient-primary px-4 py-4 text-primary-foreground shadow-glow">
         <div className="mx-auto flex max-w-3xl items-center gap-3">
           <Link
             to="/select-yatra"

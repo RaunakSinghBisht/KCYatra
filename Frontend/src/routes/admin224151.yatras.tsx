@@ -45,7 +45,7 @@ export const Route = createFileRoute("/admin224151/yatras")({
 type HotelPkg = { title: string; price: number };
 type TravelPkg = { title: string; price: number };
 
-type YatraStatus = "upcoming" | "open" | "close";
+type YatraStatus = "draft" | "upcoming" | "open" | "closed";
 
 type YatraRow = {
   id: number;
@@ -86,7 +86,7 @@ const emptyDraft: DraftForm = {
   description: "",
   whatsapp_group_link: "",
   allow_whatsapp_before_payment: false,
-  status: "upcoming",
+  status: "draft",
   hotel_packages: [],
   travel_packages: [],
 };
@@ -146,16 +146,18 @@ async function deleteYatraApi(id: number): Promise<void> {
 }
 
 // ── Status badge colours ───────────────────────────────────────────────────────
-const statusBadge: Record<YatraStatus, "default" | "secondary" | "destructive"> = {
+const statusBadge: Record<YatraStatus, "default" | "secondary" | "destructive" | "outline"> = {
+  draft: "outline",
   open: "default",
   upcoming: "secondary",
-  close: "destructive",
+  closed: "destructive",
 };
 
 const statusLabel: Record<YatraStatus, string> = {
+  draft: "Draft",
   open: "Open",
   upcoming: "Upcoming",
-  close: "Closed",
+  closed: "Closed",
 };
 
 // ── Main component ─────────────────────────────────────────────────────────────
@@ -327,9 +329,10 @@ function AdminYatras() {
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="draft">Draft (hidden from customers)</SelectItem>
                       <SelectItem value="upcoming">Upcoming</SelectItem>
                       <SelectItem value="open">Open</SelectItem>
-                      <SelectItem value="close">Close</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
                     </SelectContent>
                   </Select>
                 </Field>

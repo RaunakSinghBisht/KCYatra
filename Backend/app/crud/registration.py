@@ -51,8 +51,8 @@ async def create_registration(db: AsyncSession, data: RegistrationCreate) -> Reg
     yatra = await db.scalar(select(Yatra).where(Yatra.id == data.yatra_id))
     if not yatra:
         raise YatraNotFoundError(f"Yatra with id={data.yatra_id} not found.")
-    if yatra.status == "closed":
-        raise YatraNotActiveError(f"Cannot register for a yatra with status '{yatra.status}'.")
+    if yatra.status != "open":
+        raise YatraNotActiveError("Registrations are not open for this yatra.")
 
     # 4. Insert registration row (UNIQUE constraint handles race conditions as fallback)
     registration = Registration(

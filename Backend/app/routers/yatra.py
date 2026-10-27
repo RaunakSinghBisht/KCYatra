@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.crud.yatra import create_yatra, delete_yatra, get_all_yatras, get_yatra_by_id, update_yatra
-from app.dependencies.auth import get_principal, require_admin
+from app.dependencies.auth import Principal, get_principal, require_admin
 from app.dependencies.db import get_db
 from app.schemas.yatra import YatraCreate, YatraResponse, YatraUpdate
 
@@ -131,27 +131,27 @@ async def create_yatra_route(
 @router.get(
     "/",
     response_model=list[YatraResponse],
-    summary="List all Yatras",
-    dependencies=[Depends(get_principal)],
+    summary="List Yatras (drafts are visible to admins only)",
 )
 async def list_yatras(
+    principal: Principal = Depends(get_principal),
     db: AsyncSession = Depends(get_db),
 ) -> list[YatraResponse]:
-    return await get_all_yatras(db)
+    return await get_all_yatras(db, include_drafts=principal.is_admin)
 
 
 @router.get(
     "/{yatra_id}",
     response_model=YatraResponse,
-    summary="Get a single Yatra by ID",
-    dependencies=[Depends(get_principal)],
+    summary="Get a single Yatra by ID (drafts are visible to admins only)",
 )
 async def get_yatra(
     yatra_id: int,
+    principal: Principal = Depends(get_principal),
     db: AsyncSession = Depends(get_db),
 ) -> YatraResponse:
     yatra = await get_yatra_by_id(db, yatra_id)
-    if not yatra:
+    if not yatra or (yatra.status == "draft" and not principal.is_admin):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Yatra with id={yatra_id} not found.",

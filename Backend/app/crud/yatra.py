@@ -16,10 +16,11 @@ async def create_yatra(db: AsyncSession, data: YatraCreate, image_url: str | Non
     return yatra
 
 
-async def get_all_yatras(db: AsyncSession) -> list[Yatra]:
-    result = await db.execute(
-        select(Yatra).where(Yatra.is_deleted == False).order_by(Yatra.start_date.desc())  # noqa: E712
-    )
+async def get_all_yatras(db: AsyncSession, include_drafts: bool = False) -> list[Yatra]:
+    query = select(Yatra).where(Yatra.is_deleted == False)  # noqa: E712
+    if not include_drafts:
+        query = query.where(Yatra.status != "draft")
+    result = await db.execute(query.order_by(Yatra.start_date.desc()))
     return list(result.scalars().all())
 
 

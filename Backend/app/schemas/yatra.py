@@ -4,6 +4,19 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, field_validator
 
 
+YATRA_STATUSES = ("draft", "upcoming", "open", "closed")
+
+
+def normalize_status(v: str) -> str:
+    """Lower-case a status and map the legacy 'close' to 'closed'; reject anything unknown."""
+    s = v.strip().lower()
+    if s == "close":
+        s = "closed"
+    if s not in YATRA_STATUSES:
+        raise ValueError(f"status must be one of: {', '.join(YATRA_STATUSES)}")
+    return s
+
+
 class HotelPackage(BaseModel):
     title: str
     price: float
@@ -45,10 +58,7 @@ class YatraCreate(BaseModel):
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: str) -> str:
-        allowed = {"upcoming", "open", "close"}
-        if v.lower() not in allowed:
-            raise ValueError(f"status must be one of: {', '.join(sorted(allowed))}")
-        return v.lower()
+        return normalize_status(v)
 
     @field_validator("end_date")
     @classmethod
@@ -91,12 +101,7 @@ class YatraUpdate(BaseModel):
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: str | None) -> str | None:
-        if v is not None:
-            allowed = {"upcoming", "open", "close"}
-            if v.lower() not in allowed:
-                raise ValueError(f"status must be one of: {', '.join(sorted(allowed))}")
-            return v.lower()
-        return v
+        return normalize_status(v) if v is not None else v
 
 
 class YatraResponse(BaseModel):
@@ -116,3 +121,9 @@ class YatraResponse(BaseModel):
     allow_whatsapp_before_payment: bool
     status: str
     created_at: datetime
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def _legacy_status(cls, v: str) -> str:
+        # Old rows may still hold "close"; always report the canonical value.
+        return "closed" if isinstance(v, str) and v.strip().lower() == "close" else v

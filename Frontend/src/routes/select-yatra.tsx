@@ -30,7 +30,7 @@ type Yatra = {
   end_date: string;
   is_start_date_fixed: boolean;
   is_end_date_fixed: boolean;
-  status: string;      // "upcoming" | "open" | "close"
+  status: string;      // "upcoming" | "open" | "closed" (drafts are never returned to customers)
   description: string | null;
   whatsapp_group_link: string | null;
   allow_whatsapp_before_payment: boolean;
@@ -47,11 +47,11 @@ function formatDateRange(start: string, end: string): string {
 }
 
 function statusLabel(status: string): string {
-  return { upcoming: "Registrations Open", open: "Open", close: "Closed", closed: "Closed", active: "Active" }[status] ?? status;
+  return { upcoming: "Upcoming", open: "Open", closed: "Closed" }[status] ?? status;
 }
 
 function statusVariant(status: string): "secondary" | "destructive" | "outline" {
-  return status === "closed" ? "destructive" : status === "active" ? "secondary" : "secondary";
+  return status === "closed" ? "destructive" : "secondary";
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -140,16 +140,21 @@ function SelectYatra() {
                           <span>Join WhatsApp</span>
                         </a>
                       )}
-                      <Button
-                        asChild
-                        size="sm"
-                        className="flex-1 bg-gradient-primary font-bold shadow-glow"
-                        disabled={y.status === "closed"}
-                      >
-                        <Link to="/book/$id" params={{ id: String(y.id) }}>
-                          {y.status === "closed" ? "Closed" : "Book now"}
-                        </Link>
-                      </Button>
+                      {y.status === "open" ? (
+                        <Button asChild size="sm" className="flex-1 bg-gradient-primary font-bold shadow-glow">
+                          <Link to="/book/$id" params={{ id: String(y.id) }}>
+                            Book Now
+                          </Link>
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          disabled
+                          className={`flex-1 bg-gradient-primary font-bold ${y.status === "closed" ? "opacity-50" : "opacity-80"}`}
+                        >
+                          {y.status === "upcoming" ? "Coming Soon..." : "Book Now"}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </article>
