@@ -59,8 +59,9 @@ FREE_PAYMENT_ID = "FREE_PAYMENT"
 CASH_ADVANCE_PERCENT = Decimal("0.20")
 STATUS_PAID = "paid"
 STATUS_PARTIAL = "partial_paid"
+STATUS_NOT_PAID = "not_paid"  # cash booking: nothing paid online, everything is collected in cash
 # Registrations in these states take no further online payment.
-NO_ONLINE_PAYMENT_STATUSES = {STATUS_PAID, STATUS_PARTIAL}
+NO_ONLINE_PAYMENT_STATUSES = {STATUS_PAID, STATUS_PARTIAL, STATUS_NOT_PAID}
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -201,6 +202,11 @@ async def _build_items(
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="20% has already been paid online for this passenger. The remaining amount is to be paid in cash.",
+            )
+        if reg.payment_status == STATUS_NOT_PAID:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This passenger is booked for cash payment and cannot be paid online.",
             )
         if yatra.status != "open":
             raise HTTPException(

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
-import { ArrowLeft, X, Loader2 } from "lucide-react";
+import { ArrowLeft, X, Loader2, UserPlus } from "lucide-react";
 import { authFetch } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -230,7 +230,7 @@ function OptionRow({
 }: {
   label: string;
   options: { key: string; price: number }[];
-  selected?: string;
+  selected?: string | undefined;
   tone: "hotel" | "travel";
   disabled?: boolean;
   onSelect: (v: string) => void;
@@ -283,6 +283,7 @@ function PaymentDialog({
   sel,
   paidIds,
   partialIds,
+  cashOnlyIds,
   hotelOptions,
   travelOptions,
   yatraId,
@@ -302,6 +303,8 @@ function PaymentDialog({
   paidIds: Set<number>;
   /** Passengers who paid 20% online — the rest is paid in cash, never online. */
   partialIds: Set<number>;
+  /** Cash bookings (not_paid) — collected in cash only, never online. */
+  cashOnlyIds: Set<number>;
   hotelOptions: { key: string; price: number }[];
   travelOptions: { key: string; price: number }[];
   yatraId: number;
@@ -372,7 +375,8 @@ function PaymentDialog({
         const s = sel[p.id] ?? {};
         const isPaid = paidIds.has(p.id);
         const isPartial = partialIds.has(p.id);
-        const isSelectable = !isPaid && !isPartial && Boolean(s.hotel && s.travel);
+        const isCashOnly = cashOnlyIds.has(p.id);
+        const isSelectable = !isPaid && !isPartial && !isCashOnly && Boolean(s.hotel && s.travel);
         const hotel = hotelOptions.find((o) => o.key === s.hotel);
         const travel = travelOptions.find((o) => o.key === s.travel);
         const baseTotal = (hotel?.price ?? 0) + (travel?.price ?? 0);
@@ -391,9 +395,9 @@ function PaymentDialog({
           discountedTotal = baseTotal;
         }
 
-        return { ...p, isPaid, isPartial, isSelectable, total: discountedTotal, ageTag };
+        return { ...p, isPaid, isPartial, isCashOnly, isSelectable, total: discountedTotal, ageTag };
       }),
-    [passengers, sel, paidIds, partialIds, hotelOptions, travelOptions, yatraStartYear],
+    [passengers, sel, paidIds, partialIds, cashOnlyIds, hotelOptions, travelOptions, yatraStartYear],
   );
 
   const grandTotal = rows
@@ -639,7 +643,9 @@ function PaymentDialog({
               ? "Paid ✓"
               : r.isPartial
                 ? "20% Paid · Rest in Cash"
-                : r.isSelectable
+                : r.isCashOnly
+                  ? "Pay by Cash"
+                  : r.isSelectable
                 ? r.ageTag === "Free"
                   ? "Free"
                   : r.ageTag === "Half Price"
@@ -651,7 +657,7 @@ function PaymentDialog({
                 key={r.id}
                 className={cn(
                   "flex items-center gap-3 rounded-2xl border border-border bg-card px-3 py-3 shadow-soft",
-                  !r.isSelectable && !r.isPaid && !r.isPartial && "opacity-70",
+                  !r.isSelectable && !r.isPaid && !r.isPartial && !r.isCashOnly && "opacity-70",
                   r.isPaid && "border-green-200 bg-green-50",
                   r.isPartial && "border-amber-200 bg-amber-50",
                 )}
@@ -659,7 +665,7 @@ function PaymentDialog({
                 <Checkbox
                   id={`pay-${r.id}`}
                   checked={checked}
-                  disabled={!r.isSelectable || r.isPaid || r.isPartial || isBusy}
+                  disabled={!r.isSelectable || r.isPaid || r.isPartial || r.isCashOnly || isBusy}
                   onCheckedChange={() => toggle(r.id)}
                   className="size-6 rounded-[5px] border-2 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
                 />
@@ -667,7 +673,7 @@ function PaymentDialog({
                   htmlFor={`pay-${r.id}`}
                   className={cn(
                     "flex flex-1 items-center justify-between gap-2 text-sm font-bold",
-                    !r.isSelectable && !r.isPaid && !r.isPartial && "text-muted-foreground",
+                    !r.isSelectable && !r.isPaid && !r.isPartial && !r.isCashOnly && "text-muted-foreground",
                   )}
                 >
                   <span className="truncate">
@@ -874,6 +880,7 @@ function BookYatra() {
   const [paidIds, setPaidIds] = useState<Set<number>>(new Set());
   // Passengers who paid 20% online; the rest is cash. Locked like paid ones, but shown as "Partial Paid".
   const [partialIds, setPartialIds] = useState<Set<number>>(new Set());
+  const [cashOnlyIds, setCashOnlyIds] = useState<Set<number>>(new Set());
   const lockedIds = useMemo(() => new Set([...paidIds, ...partialIds]), [paidIds, partialIds]);
   const [payOpen, setPayOpen] = useState(false);
   const [acceptPayments, setAcceptPayments] = useState(true);
@@ -997,6 +1004,7 @@ function BookYatra() {
         const revIds: Record<number, number> = {};
         const alreadyPaid = new Set<number>();
         const alreadyPartial = new Set<number>();
+        const cashOnly = new Set<number>();
         const prefilled: Record<number, Selection> = {};
 
         for (const pax of mergedPassengers) {
@@ -1008,6 +1016,7 @@ function BookYatra() {
             alreadyPaid.add(pax.id);
           } else {
             if (reg.payment_status === "partial_paid") alreadyPartial.add(pax.id);
+            if (reg.payment_status === "not_paid") cashOnly.add(pax.id);
             const hotelTitle = parsePkgTitle(reg.hotel_package);
             const travelTitle = parsePkgTitle(reg.travel_package);
             if (hotelTitle || travelTitle) {
@@ -1023,6 +1032,7 @@ function BookYatra() {
         setRegToPax(revIds);
         if (alreadyPaid.size > 0) setPaidIds(alreadyPaid);
         if (alreadyPartial.size > 0) setPartialIds(alreadyPartial);
+        if (cashOnly.size > 0) setCashOnlyIds(cashOnly);
         if (Object.keys(prefilled).length > 0) setSel(prefilled);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to load page");
@@ -1230,7 +1240,9 @@ function BookYatra() {
             ? "Paid ✓"
             : isPartial
               ? "Partial Paid"
-              : isRegistered
+              : cashOnlyIds.has(p.id)
+                ? "Pay by Cash"
+                : isRegistered
                 ? "Saved"
                 : s.hotel && s.travel
                   ? "Packages selected"
@@ -1295,6 +1307,18 @@ function BookYatra() {
         })}
       </main>
 
+      <Link
+        to="/personal-details"
+        aria-label="Add passengers"
+        title="Add passengers"
+        className={cn(
+          "fixed right-4 z-40 grid size-14 place-items-center rounded-full bg-gradient-primary text-primary-foreground shadow-glow transition-transform hover:scale-105 active:scale-95",
+          passengers.length > 0 ? "bottom-[80px]" : "bottom-6",
+        )}
+      >
+        <UserPlus className="size-6" />
+      </Link>
+
       {passengers.length > 0 && (
         <div
           className={cn(
@@ -1325,6 +1349,7 @@ function BookYatra() {
         sel={sel}
         paidIds={paidIds}
         partialIds={partialIds}
+        cashOnlyIds={cashOnlyIds}
         hotelOptions={hotelOptions}
         travelOptions={travelOptions}
         yatraId={yatra.id}
