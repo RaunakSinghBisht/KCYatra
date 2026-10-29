@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BASE_URL } from "@/lib/api";
+import { useSiteSettings } from "@/lib/site-settings";
 import { TERMS_CLAUSES } from "@/lib/terms";
 import { useYatraAuth } from "@/lib/yatra-auth";
 import { toast } from "sonner";
@@ -921,6 +922,12 @@ function BookYatra() {
       .then((data: { accept_payments: boolean }) => setAcceptPayments(data.accept_payments))
       .catch(() => { /* keep default true on error */ });
   }, []);
+
+  // Pick up the payments toggle live (polled app-wide) without a page refresh.
+  const siteSettings = useSiteSettings();
+  useEffect(() => {
+    if (siteSettings) setAcceptPayments(siteSettings.accept_payments);
+  }, [siteSettings]);
 
   // ── Fetch yatra + passengers in parallel ──────────────────────────────────
   useEffect(() => {

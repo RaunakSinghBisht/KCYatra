@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -16,6 +17,8 @@ import { AdminAuthProvider } from "@/features/admin/lib/admin-auth";
 import { AdminStoreProvider } from "@/features/admin/lib/admin-store";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Toaster } from "@/components/ui/sonner";
+import { DamPageView } from "@/components/DamPageView";
+import { SiteSettingsProvider, useSiteSettings } from "@/lib/site-settings";
 
 
 function NotFoundComponent() {
@@ -124,6 +127,20 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+// While the Dam Page is ON, customer pages are replaced by the maintenance message — live,
+// without a refresh. The landing page, login page (own handling) and admin area stay reachable.
+function DamPageGate() {
+  const settings = useSiteSettings();
+  const pathname = useRouterState({ select: (s) => s?.location?.pathname ?? "" });
+  const exempt = pathname === "/" || pathname === "/auth" || pathname.startsWith("/admin224151");
+
+  if (settings?.enabled && !exempt) {
+    return <DamPageView title={settings.title} description={settings.description} />;
+  }
+  /* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */
+  return <Outlet />;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
@@ -132,10 +149,11 @@ function RootComponent() {
       <YatraAuthProvider>
         <AdminAuthProvider>
           <AdminStoreProvider>
-            <SiteHeader />
-            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-            <Outlet />
-            <Toaster position="top-center" richColors />
+            <SiteSettingsProvider>
+              <SiteHeader />
+              <DamPageGate />
+              <Toaster position="top-center" richColors />
+            </SiteSettingsProvider>
           </AdminStoreProvider>
         </AdminAuthProvider>
       </YatraAuthProvider>
