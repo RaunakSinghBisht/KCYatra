@@ -138,7 +138,7 @@ function Transactions() {
                         <Row label="Journey Date" value={new Date(t.yatra_start_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" })} />
                         <div className="mt-1 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-2 border-t border-border pt-2">
                           <dt className="text-sm font-bold">
-                            {t.payment_status === "partial_paid" ? "Paid Online (20%) — Rest in Cash" : "Total"}
+                            {t.payment_status === "partial_paid" ? "Paid Online (Advance) — Rest in Cash" : "Total"}
                           </dt>
                           <dd className="text-right text-base font-extrabold text-primary">₹ {t.amount_paid.toLocaleString("en-IN")}</dd>
                         </div>

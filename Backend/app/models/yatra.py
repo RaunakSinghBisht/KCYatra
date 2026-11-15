@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, DateTime, String, Text, func
+from sqlalchemy import Boolean, DateTime, Integer, String, Text, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -23,6 +23,9 @@ class Yatra(Base):
     message_for_passengers: Mapped[str | None] = mapped_column(Text, nullable=True)
     whatsapp_group_link: Mapped[str | None] = mapped_column(String(500), nullable=True)
     allow_whatsapp_before_payment: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    cash_online_percent: Mapped[int] = mapped_column(
+        Integer, default=20, server_default=text("20"), nullable=False
+    )
     status: Mapped[str] = mapped_column(String(20), default="upcoming", nullable=False)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(

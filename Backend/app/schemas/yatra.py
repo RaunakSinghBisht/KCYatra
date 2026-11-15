@@ -17,6 +17,13 @@ def normalize_status(v: str) -> str:
     return s
 
 
+def check_cash_percent(v: int | None) -> int | None:
+    """The share of a "Pay by Cash" booking paid online up front (whole percent, 1-99)."""
+    if v is not None and not (1 <= v <= 99):
+        raise ValueError("cash_online_percent must be between 1 and 99.")
+    return v
+
+
 class HotelPackage(BaseModel):
     title: str
     price: float
@@ -38,6 +45,7 @@ class YatraCreate(BaseModel):
     description: str | None = None
     whatsapp_group_link: str | None = None
     allow_whatsapp_before_payment: bool = False
+    cash_online_percent: int = 20
     status: str = "upcoming"
 
     @field_validator("title")
@@ -60,6 +68,11 @@ class YatraCreate(BaseModel):
     def validate_status(cls, v: str) -> str:
         return normalize_status(v)
 
+    @field_validator("cash_online_percent")
+    @classmethod
+    def validate_cash_percent(cls, v):
+        return check_cash_percent(v)
+
     @field_validator("end_date")
     @classmethod
     def end_date_must_be_after_start(cls, v: date, info) -> date:
@@ -80,6 +93,7 @@ class YatraUpdate(BaseModel):
     description: Optional[str] = None
     whatsapp_group_link: Optional[str] = None
     allow_whatsapp_before_payment: Optional[bool] = None
+    cash_online_percent: Optional[int] = None
     status: Optional[str] = None
 
     @field_validator("title")
@@ -97,6 +111,11 @@ class YatraUpdate(BaseModel):
         if v is not None and len(v) > 500:
             raise ValueError("description must be at most 500 characters.")
         return v
+
+    @field_validator("cash_online_percent")
+    @classmethod
+    def validate_cash_percent(cls, v):
+        return check_cash_percent(v)
 
     @field_validator("status")
     @classmethod
@@ -119,6 +138,7 @@ class YatraResponse(BaseModel):
     description: str | None
     whatsapp_group_link: str | None
     allow_whatsapp_before_payment: bool
+    cash_online_percent: int
     status: str
     created_at: datetime
 

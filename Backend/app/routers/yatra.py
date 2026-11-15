@@ -77,6 +77,7 @@ async def create_yatra_route(
     description: str | None = Form(None),
     whatsapp_group_link: str | None = Form(None),
     allow_whatsapp_before_payment: bool = Form(False),
+    cash_online_percent: int = Form(20),
     status_field: str = Form("upcoming", alias="status"),
     image: UploadFile | None = File(None),
     db: AsyncSession = Depends(get_db),
@@ -113,6 +114,7 @@ async def create_yatra_route(
         description=description,
         whatsapp_group_link=whatsapp_group_link,
         allow_whatsapp_before_payment=allow_whatsapp_before_payment,
+        cash_online_percent=cash_online_percent,
         status=status_field.lower(),
     )
 
@@ -177,6 +179,7 @@ async def update_yatra_route(
     description: str | None = Form(None),
     whatsapp_group_link: str | None = Form(None),
     allow_whatsapp_before_payment: bool | None = Form(None),
+    cash_online_percent: int | None = Form(None),
     status_field: str | None = Form(None, alias="status"),
     image: UploadFile | None = File(None),
     db: AsyncSession = Depends(get_db),
@@ -216,6 +219,7 @@ async def update_yatra_route(
         description=description,
         whatsapp_group_link=whatsapp_group_link,
         allow_whatsapp_before_payment=allow_whatsapp_before_payment,
+        cash_online_percent=cash_online_percent,
         status=status_field.lower() if status_field else None,
     )
 

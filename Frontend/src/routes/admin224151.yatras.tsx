@@ -60,6 +60,7 @@ type YatraRow = {
   description: string | null;
   whatsapp_group_link: string | null;
   allow_whatsapp_before_payment: boolean;
+  cash_online_percent: number;
   status: YatraStatus;
   created_at?: string;
 };
@@ -71,6 +72,7 @@ type DraftForm = {
   description: string;
   whatsapp_group_link: string;
   allow_whatsapp_before_payment: boolean;
+  cash_online_percent: string;
   status: YatraStatus;
   hotel_packages: HotelPkg[];
   travel_packages: TravelPkg[];
@@ -86,6 +88,7 @@ const emptyDraft: DraftForm = {
   description: "",
   whatsapp_group_link: "",
   allow_whatsapp_before_payment: false,
+  cash_online_percent: "20",
   status: "draft",
   hotel_packages: [],
   travel_packages: [],
@@ -107,6 +110,7 @@ async function createYatraApi(draft: DraftForm, imageFile: File | null): Promise
   if (draft.description) form.append("description", draft.description);
   if (draft.whatsapp_group_link) form.append("whatsapp_group_link", draft.whatsapp_group_link);
   form.append("allow_whatsapp_before_payment", String(draft.allow_whatsapp_before_payment));
+  form.append("cash_online_percent", draft.cash_online_percent);
   if (draft.hotel_packages.length) form.append("hotel_packages", JSON.stringify(draft.hotel_packages));
   if (draft.travel_packages.length) form.append("travel_packages", JSON.stringify(draft.travel_packages));
   if (imageFile) form.append("image", imageFile);
@@ -128,6 +132,7 @@ async function updateYatraApi(id: number, draft: DraftForm, imageFile: File | nu
   form.append("description", draft.description);
   form.append("whatsapp_group_link", draft.whatsapp_group_link);
   form.append("allow_whatsapp_before_payment", String(draft.allow_whatsapp_before_payment));
+  form.append("cash_online_percent", draft.cash_online_percent);
   form.append("hotel_packages", JSON.stringify(draft.hotel_packages));
   form.append("travel_packages", JSON.stringify(draft.travel_packages));
   if (imageFile) form.append("image", imageFile);
@@ -223,6 +228,7 @@ function AdminYatras() {
       description: y.description ?? "",
       whatsapp_group_link: y.whatsapp_group_link ?? "",
       allow_whatsapp_before_payment: y.allow_whatsapp_before_payment ?? false,
+      cash_online_percent: String(y.cash_online_percent ?? 20),
       status: y.status,
       hotel_packages: y.hotel_packages ?? [],
       travel_packages: y.travel_packages ?? [],
@@ -261,6 +267,11 @@ function AdminYatras() {
 
   const save = () => {
     if (!draft.title.trim()) { toast.error("Yatra title is required"); return; }
+    const pct = Number(draft.cash_online_percent);
+    if (!Number.isInteger(pct) || pct < 1 || pct > 99) {
+      toast.error("Cash's Online Payment Percentage must be a whole number between 1 and 99");
+      return;
+    }
     if (!draft.start_date) { toast.error("Start date is required"); return; }
     if (!draft.end_date) { toast.error("End date is required"); return; }
     if (draft.end_date < draft.start_date) { toast.error("End date must be on or after start date"); return; }
@@ -335,6 +346,23 @@ function AdminYatras() {
                       <SelectItem value="closed">Closed</SelectItem>
                     </SelectContent>
                   </Select>
+                </Field>
+
+                {/* Cash payment advance */}
+                <Field label="Cash's Online Payment Percentage">
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={99}
+                    step={1}
+                    value={draft.cash_online_percent}
+                    onChange={(e) => setDraft({ ...draft, cash_online_percent: e.target.value })}
+                    placeholder="20"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    For "Pay by Cash" bookings: this % is paid online now, the rest in cash (1–99, e.g. 20, 30, 50).
+                  </p>
                 </Field>
 
                 {/* WhatsApp */}

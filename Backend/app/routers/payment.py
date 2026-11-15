@@ -55,8 +55,7 @@ RAZORPAY_TIMEOUT_SECONDS = 15
 FREE_ORDER_PREFIX = "FREE_"
 FREE_PAYMENT_ID = "FREE_PAYMENT"
 
-# "Pay by Cash" bookings pay this share online up front; the rest is collected in cash.
-CASH_ADVANCE_PERCENT = Decimal("0.20")
+# "Pay by Cash" bookings pay the yatra's cash_online_percent online up front; the rest is collected in cash.
 STATUS_PAID = "paid"
 STATUS_PARTIAL = "partial_paid"
 STATUS_NOT_PAID = "not_paid"  # cash booking: nothing paid online, everything is collected in cash
@@ -69,7 +68,7 @@ NO_ONLINE_PAYMENT_STATUSES = {STATUS_PAID, STATUS_PARTIAL, STATUS_NOT_PAID}
 class CreateOrderRequest(BaseModel):
     registration_ids: list[int] = Field(min_length=1, max_length=MAX_REGISTRATIONS_PER_ORDER)
     # "full"         → pay the whole fare online
-    # "cash_partial" → pay 20% online now; the rest is paid in cash
+    # "cash_partial" → pay the yatra's cash_online_percent online now; the rest is paid in cash
     mode: Literal["full", "cash_partial"] = "full"
 
 
@@ -159,9 +158,9 @@ def _fare(base_amount: Decimal, age: int) -> Decimal:
     return _quantize(base_amount)
 
 
-def _advance_paise(full_paise: int) -> int:
-    """20% of a fare, rounded to the nearest paisa."""
-    return int((Decimal(full_paise) * CASH_ADVANCE_PERCENT).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+def _advance_paise(full_paise: int, percent: int) -> int:
+    """The yatra's cash-advance share (percent) of a fare, rounded to the nearest paisa."""
+    return int((Decimal(full_paise) * Decimal(percent) / Decimal(100)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
 async def _build_items(
@@ -201,7 +200,7 @@ async def _build_items(
         if reg.payment_status == STATUS_PARTIAL:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="20% has already been paid online for this passenger. The remaining amount is to be paid in cash.",
+                detail="The advance has already been paid online for this passenger. The remaining amount is to be paid in cash.",
             )
         if reg.payment_status == STATUS_NOT_PAID:
             raise HTTPException(
@@ -222,7 +221,7 @@ async def _build_items(
         items.append(
             {
                 "registration_id": reg.id,
-                "amount_paise": _advance_paise(full_paise) if partial else full_paise,
+                "amount_paise": _advance_paise(full_paise, yatra.cash_online_percent) if partial else full_paise,
                 "full_paise": full_paise,
                 "partial": partial,
             }

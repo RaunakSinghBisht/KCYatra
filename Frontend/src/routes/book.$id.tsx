@@ -41,6 +41,7 @@ type Yatra = {
   travel_packages: Package[] | null;
   status: string;
   whatsapp_group_link: string | null;
+  cash_online_percent?: number;
 };
 
 type Passenger = {
@@ -293,6 +294,7 @@ function PaymentDialog({
   regIds,
   yatraStartYear,
   whatsappGroupLink,
+  cashPercent,
   onSaved,
   onPaid,
   onPartial,
@@ -314,6 +316,8 @@ function PaymentDialog({
   regIds: Record<number, number>;
   yatraStartYear: number;
   whatsappGroupLink: string | null;
+  /** Share of a cash booking paid online up front (set per yatra by the admin). */
+  cashPercent: number;
   onSaved: (savedRegIds: Record<number, number>) => void;
   onPaid: (paidRegIds: number[]) => void;
   onPartial: (partialRegIds: number[]) => void;
@@ -434,7 +438,7 @@ function PaymentDialog({
           const count = data.paid_registration_ids.length + (data.partial_registration_ids?.length ?? 0);
           toast.success(
             kind === "cash"
-              ? "20% paid online! Please pay the rest in cash to the organizer."
+              ? `${cashPercent}% paid online! Please pay the rest in cash to the organizer.`
               : `Payment successful! ${count} registration(s) confirmed.`,
           );
           onPaid(data.paid_registration_ids);
@@ -475,7 +479,7 @@ function PaymentDialog({
         currency: order.currency,
         order_id: order.order_id,
         name: "Krishna Conscious Yatra",
-        description: kind === "cash" ? "Yatra Registration — 20% advance (rest in cash)" : "Yatra Registration Payment",
+        description: kind === "cash" ? `Yatra Registration — ${cashPercent}% advance (rest in cash)` : "Yatra Registration Payment",
         theme: { color: "#f97316" },
         prefill: { contact: userPhone },
         retry: { enabled: true, max_count: 3 },
@@ -596,7 +600,7 @@ function PaymentDialog({
     }
   }
 
-  // "Pay by Cash": first explain the 20% online advance; closing that notice starts the 20% payment.
+  // "Pay by Cash": first explain the online advance; continuing starts that payment.
   function handlePayCash() {
     if (checkedIds.size === 0 || isBusy || payingRef.current) return;
     setCashNoticeOpen(true);
@@ -607,9 +611,9 @@ function PaymentDialog({
     void handlePayOnline("cash_partial");
   }
 
-  // What the notice shows: 20% now (rounded per passenger, like the server), the rest in cash.
+  // What the notice shows: the advance now (rounded per passenger, like the server), the rest in cash.
   const selectedRows = rows.filter((r) => r.isSelectable && checkedIds.has(r.id));
-  const advanceNow = selectedRows.reduce((sum, r) => sum + Math.round(r.total * 100 * 0.2), 0) / 100;
+  const advanceNow = selectedRows.reduce((sum, r) => sum + Math.round((r.total * 100 * cashPercent) / 100), 0) / 100;
   const restInCash = grandTotal - advanceNow;
 
   return (
@@ -643,7 +647,7 @@ function PaymentDialog({
             const labelRight = r.isPaid
               ? "Paid ✓"
               : r.isPartial
-                ? "20% Paid · Rest in Cash"
+                ? `${cashPercent}% Paid · Rest in Cash`
                 : r.isCashOnly
                   ? "Pay by Cash"
                   : r.isSelectable
@@ -741,11 +745,11 @@ function PaymentDialog({
               </DialogHeader>
               <div className="px-6 py-5">
                 <p className="text-base font-bold leading-snug">
-                  You have to Pay 20% of the Payment Online, Rest Would be Taken as Cash
+                  You have to Pay {cashPercent}% of the Payment Online, Rest Would be Taken as Cash
                 </p>
                 <dl className="mt-4 space-y-2 rounded-2xl bg-accent/50 px-4 py-3 text-sm">
                   <div className="flex items-center justify-between gap-3">
-                    <dt className="font-semibold text-foreground">Pay online now (20%)</dt>
+                    <dt className="font-semibold text-foreground">Pay online now ({cashPercent}%)</dt>
                     <dd className="font-extrabold">{formatPrice(advanceNow)}</dd>
                   </div>
                   <div className="flex items-center justify-between gap-3">
@@ -834,7 +838,7 @@ function PaymentDialog({
             <p className="mt-3 text-sm text-muted-foreground">
               {thankYouKind === "cash" ? (
                 <>
-                  Organizer will Contact You for Remaining 80% Cash Collection.
+                  Organizer will Contact You for Remaining {100 - cashPercent}% Cash Collection.
                   <br />
                   Hare Krishna !
                 </>
@@ -1365,6 +1369,7 @@ function BookYatra() {
         regIds={regIds}
         yatraStartYear={new Date(yatra.start_date).getFullYear()}
         whatsappGroupLink={yatra.whatsapp_group_link ?? null}
+        cashPercent={yatra.cash_online_percent ?? 20}
         onSaved={handleSaved}
         onPaid={handlePaid}
         onPartial={handlePartial}

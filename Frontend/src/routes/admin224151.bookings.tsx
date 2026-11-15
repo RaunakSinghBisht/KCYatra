@@ -120,23 +120,20 @@ const STATUS_FILTERS: { value: string; label: string; match: (r: Registration) =
   },
   {
     value: "cash_partial",
-    label: "Cash • Partial Paid (20% Paid)",
+    label: "Cash • Partial Paid",
     match: (r) => r.paymentStatus === "partial_paid",
   },
   {
     value: "cash_paid",
-    label: "Cash • Paid (100% Paid)",
+    label: "Cash • Paid",
     match: (r) => r.paymentStatus === "paid" && r.paymentMethod === "cash",
-  },
-  // "not_paid" only ever came from choosing cash, so it is matched by status alone.
-  {
-    value: "cash_not_paid",
-    label: "Cash • Not Paid (0% Paid)",
-    match: (r) => r.paymentStatus === "not_paid",
   },
 ];
 
 type YatraOption = { id: number; title: string };
+
+// The admin's chosen yatra is remembered in this browser, so it survives navigation and reloads.
+const YATRA_FILTER_KEY = "kcy_admin_bookings_yatra";
 
 function AdminBookings() {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
@@ -144,7 +141,19 @@ function AdminBookings() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [yatraFilter, setYatraFilter] = useState("all");
+  const [yatraFilter, setYatraFilterState] = useState("all");
+  const setYatraFilter = (v: string) => {
+    setYatraFilterState(v);
+    try { localStorage.setItem(YATRA_FILTER_KEY, v); } catch { /* storage unavailable */ }
+  };
+
+  // Restore after mount (not in the initial state) so server and client renders match.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(YATRA_FILTER_KEY);
+      if (saved) setYatraFilterState(saved);
+    } catch { /* storage unavailable */ }
+  }, []);
   const [deleting, setDeleting] = useState<Registration | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -160,6 +169,8 @@ function AdminBookings() {
       if (yatraRes.ok) {
         const yList = (await yatraRes.json()) as { id: number; title: string }[];
         setAllYatras(yList.map((y) => ({ id: y.id, title: y.title })).sort((a, b) => a.id - b.id));
+        // A remembered yatra that no longer exists falls back to "All yatras".
+        setYatraFilterState((cur) => (cur === "all" || yList.some((y) => String(y.id) === cur) ? cur : "all"));
       }
     } catch (err) {
       toast.error("Failed to load registrations");
