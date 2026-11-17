@@ -30,8 +30,7 @@ type Yatra = {
 
 type Registration = { passenger_id: number; yatra_id: number };
 
-const PAYMENT_STATUSES = ["interested", "paid", "partial_paid", "not_paid", "cash"];
-const PAYMENT_METHODS = ["cash", "online"];
+import { PAYMENT_OPTIONS, optionByValue } from "@/features/admin/lib/payment-options";
 
 const BLANK = {
   passengerId: "",
@@ -51,7 +50,6 @@ const BLANK = {
   travelPackage: "",
   paymentStatus: "interested",
   amountPaid: "",
-  paymentMethod: "",
   transactionId: "Created by Admin",
 } as const;
 
@@ -129,9 +127,9 @@ export function ManualBookingDialog({ onCreated }: { onCreated: () => void }) {
         yatra_id: Number(form.yatraId),
         hotel_package: form.hotelPackage || null,
         travel_package: form.travelPackage || null,
-        payment_status: form.paymentStatus || "interested",
+        payment_status: optionByValue(form.paymentStatus).status,
         amount_paid: form.amountPaid ? Number(form.amountPaid) : 0,
-        payment_method: form.paymentMethod || null,
+        payment_method: optionByValue(form.paymentStatus).method,
         transaction_id: form.transactionId.trim() || null,
       };
 
@@ -343,7 +341,7 @@ export function ManualBookingDialog({ onCreated }: { onCreated: () => void }) {
             <Select value={form.paymentStatus} onValueChange={(v) => set("paymentStatus", v)}>
               <SelectTrigger className="h-11 rounded-full shadow-sm"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {PAYMENT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                {PAYMENT_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
               </SelectContent>
             </Select>
           </Field>
@@ -351,17 +349,6 @@ export function ManualBookingDialog({ onCreated }: { onCreated: () => void }) {
           {/* ── 13. Amount Paid ── */}
           <Field label="Amount Paid (₹)">
             <Input className="h-11 rounded-full shadow-sm" placeholder="0" inputMode="numeric" value={form.amountPaid} onChange={(e) => set("amountPaid", e.target.value.replace(/\D/g, ""))} />
-          </Field>
-
-          {/* ── 14. Payment Method ── */}
-          <Field label="Payment Method">
-            <Select value={form.paymentMethod} onValueChange={(v) => set("paymentMethod", v === "__none__" ? "" : v)}>
-              <SelectTrigger className="h-11 rounded-full shadow-sm"><SelectValue placeholder="Optional" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">— None —</SelectItem>
-                {PAYMENT_METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-              </SelectContent>
-            </Select>
           </Field>
 
           {/* ── 15. Razorpay / Transaction ID ── */}

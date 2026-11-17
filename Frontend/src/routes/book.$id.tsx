@@ -298,6 +298,7 @@ function PaymentDialog({
   onSaved,
   onPaid,
   onPartial,
+  onCashOnly,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -321,9 +322,11 @@ function PaymentDialog({
   onSaved: (savedRegIds: Record<number, number>) => void;
   onPaid: (paidRegIds: number[]) => void;
   onPartial: (partialRegIds: number[]) => void;
+  onCashOnly: (cashRegIds: number[]) => void;
 }) {
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());
   const [cashNoticeOpen, setCashNoticeOpen] = useState(false);
+  const [cashDisabledOpen, setCashDisabledOpen] = useState(false);
   // Passengers whose packages are locked: fully paid, or 20% paid.
   const lockedIds = useMemo(() => new Set([...paidIds, ...partialIds]), [paidIds, partialIds]);
   const [saving, setSaving] = useState(false);
@@ -443,6 +446,7 @@ function PaymentDialog({
           );
           onPaid(data.paid_registration_ids);
           onPartial(data.partial_registration_ids ?? []);
+          onCashOnly(data.cash_registration_ids ?? []);
           setCheckedIds(new Set());
           showThankYou(kind);
           return;
@@ -579,9 +583,15 @@ function PaymentDialog({
           return;
         }
         const data = await freeRes.json();
-        toast.success(`Registration successful! ${data.paid_registration_ids.length} registration(s) confirmed.`);
+        const cashIds: number[] = data.cash_registration_ids ?? [];
+        toast.success(
+          cashIds.length > 0
+            ? "Booked! Please pay the full amount in cash to the organizer."
+            : `Registration successful! ${data.paid_registration_ids.length} registration(s) confirmed.`,
+        );
         onPaid(data.paid_registration_ids);
         onPartial(data.partial_registration_ids ?? []);
+        onCashOnly(cashIds);
         setCheckedIds(new Set());
         onOpenChange(false);
         showThankYou(kind);
@@ -602,7 +612,13 @@ function PaymentDialog({
 
   // "Pay by Cash": first explain the online advance; continuing starts that payment.
   function handlePayCash() {
-    if (checkedIds.size === 0 || isBusy || payingRef.current) return;
+    if (isBusy || payingRef.current) return;
+    // 100% online means the yatra takes no cash: the button looks disabled but explains why when clicked.
+    if (cashPercent >= 100) {
+      setCashDisabledOpen(true);
+      return;
+    }
+    if (checkedIds.size === 0) return;
     setCashNoticeOpen(true);
   }
 
@@ -745,24 +761,50 @@ function PaymentDialog({
               </DialogHeader>
               <div className="px-6 py-5">
                 <p className="text-base font-bold leading-snug">
-                  You have to Pay {cashPercent}% of the Payment Online, Rest Would be Taken as Cash
+                  {cashPercent === 0
+                    ? "You have to Pay All the Amount to the Concerned Authorities by Cash"
+                    : `You have to Pay ${cashPercent}% of the Payment Online, Rest Would be Taken as Cash`}
                 </p>
-                <dl className="mt-4 space-y-2 rounded-2xl bg-accent/50 px-4 py-3 text-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <dt className="font-semibold text-foreground">Pay online now ({cashPercent}%)</dt>
-                    <dd className="font-extrabold">{formatPrice(advanceNow)}</dd>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <dt className="font-semibold text-foreground">Rest, paid in cash</dt>
-                    <dd className="font-extrabold">{formatPrice(restInCash)}</dd>
-                  </div>
-                </dl>
+                {cashPercent > 0 && (
+                  <dl className="mt-4 space-y-2 rounded-2xl bg-accent/50 px-4 py-3 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="font-semibold text-foreground">Pay online now ({cashPercent}%)</dt>
+                      <dd className="font-extrabold">{formatPrice(advanceNow)}</dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="font-semibold text-foreground">Rest, paid in cash</dt>
+                      <dd className="font-extrabold">{formatPrice(restInCash)}</dd>
+                    </div>
+                  </dl>
+                )}
                 <button
                   type="button"
                   onClick={continueCashPayment}
                   className="mt-5 w-full rounded-full bg-gradient-primary py-3 text-base font-extrabold text-primary-foreground shadow-glow"
                 >
-                  Pay ₹{advanceNow.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                  {cashPercent === 0
+                    ? "Confirm Cash Booking"
+                    : `Pay ₹${advanceNow.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`}
+                </button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Pay by Cash is switched off for this yatra (cash share set to 100%). */}
+          <Dialog open={cashDisabledOpen} onOpenChange={setCashDisabledOpen}>
+            <DialogContent className="gap-0 rounded-3xl p-0 sm:max-w-sm">
+              <DialogHeader className="px-6 pb-2 pt-6 text-left">
+                <DialogTitle className="pr-6 text-lg font-extrabold">Cash Payment is Disabled for this Yatra !</DialogTitle>
+                <DialogDescription className="sr-only">Pay by Cash is not available for this yatra</DialogDescription>
+              </DialogHeader>
+              <div className="px-6 pb-6 pt-2">
+                <p className="text-sm text-muted-foreground">Please use Pay Online to complete your booking.</p>
+                <button
+                  type="button"
+                  onClick={() => setCashDisabledOpen(false)}
+                  className="mt-4 w-full rounded-full bg-gradient-primary py-3 text-base font-extrabold text-primary-foreground shadow-glow"
+                >
+                  OK
                 </button>
               </div>
             </DialogContent>
@@ -772,8 +814,12 @@ function PaymentDialog({
             <button
               type="button"
               onClick={handlePayCash}
-              disabled={checkedIds.size === 0 || isBusy}
-              className="flex flex-1 items-center justify-center gap-2 rounded-full bg-gradient-primary py-3.5 text-center text-base sm:text-lg font-extrabold tracking-tight text-primary-foreground shadow-glow disabled:opacity-60"
+              disabled={cashPercent < 100 && (checkedIds.size === 0 || isBusy)}
+              aria-disabled={cashPercent >= 100 ? true : undefined}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-2 rounded-full bg-gradient-primary py-3.5 text-center text-base sm:text-lg font-extrabold tracking-tight text-primary-foreground shadow-glow disabled:opacity-60",
+                cashPercent >= 100 && "cursor-not-allowed opacity-60",
+              )}
             >
               {isBusy && activeMethod === "cash" ? (
                 <>
@@ -1168,6 +1214,18 @@ function BookYatra() {
     setPayOpen(false);
   }, [regToPax]);
 
+  const handleCashOnly = useCallback((cashRegIds: number[]) => {
+    if (cashRegIds.length === 0) return;
+    setCashOnlyIds((prev) => {
+      const next = new Set(prev);
+      for (const regId of cashRegIds) {
+        const paxId = regToPax[regId];
+        if (paxId) next.add(paxId);
+      }
+      return next;
+    });
+  }, [regToPax]);
+
   const handlePartial = useCallback((partialRegIds: number[]) => {
     if (partialRegIds.length === 0) return;
     setPartialIds((prev) => {
@@ -1373,6 +1431,7 @@ function BookYatra() {
         onSaved={handleSaved}
         onPaid={handlePaid}
         onPartial={handlePartial}
+        onCashOnly={handleCashOnly}
       />
     </div>
   );

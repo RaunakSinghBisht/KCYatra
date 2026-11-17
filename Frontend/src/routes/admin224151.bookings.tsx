@@ -128,6 +128,12 @@ const STATUS_FILTERS: { value: string; label: string; match: (r: Registration) =
     label: "Cash • Paid",
     match: (r) => r.paymentStatus === "paid" && r.paymentMethod === "cash",
   },
+  // Yatras with a 0% online advance book straight into "not_paid" (everything is collected in cash).
+  {
+    value: "cash_not_paid",
+    label: "Cash • Not Paid",
+    match: (r) => r.paymentStatus === "not_paid",
+  },
 ];
 
 type YatraOption = { id: number; title: string };

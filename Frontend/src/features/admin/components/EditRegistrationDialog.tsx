@@ -10,16 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BASE_URL } from "@/lib/api";
 import type { Registration } from "@/routes/admin224151.bookings";
 
-const PAYMENT_STATUSES = ["interested", "paid", "partial_paid", "not_paid", "cash"];
-const PAYMENT_METHODS = ["cash", "online"];
+import { PAYMENT_OPTIONS, optionByValue, optionValueFor } from "@/features/admin/lib/payment-options";
 
 export function EditRegistrationDialog({ registration: r, onUpdated }: { registration: Registration; onUpdated: () => void }) {
   const [open, setOpen] = useState(false);
   const [hotelPackage, setHotelPackage] = useState(r.hotelPackage ?? "");
   const [travelPackage, setTravelPackage] = useState(r.travelPackage ?? "");
-  const [paymentStatus, setPaymentStatus] = useState(r.paymentStatus);
+  const [paymentStatus, setPaymentStatus] = useState(optionValueFor(r.paymentStatus, r.paymentMethod));
   const [amountPaid, setAmountPaid] = useState(String(r.amountPaid));
-  const [paymentMethod, setPaymentMethod] = useState(r.paymentMethod ?? "");
   const [transactionId, setTransactionId] = useState(r.transactionId ?? "");
   const [saving, setSaving] = useState(false);
 
@@ -32,9 +30,9 @@ export function EditRegistrationDialog({ registration: r, onUpdated }: { registr
         body: JSON.stringify({
           hotel_package: hotelPackage || null,
           travel_package: travelPackage || null,
-          payment_status: paymentStatus,
+          payment_status: optionByValue(paymentStatus).status,
           amount_paid: Number(amountPaid) || 0,
-          payment_method: paymentMethod || null,
+          payment_method: optionByValue(paymentStatus).method,
           transaction_id: transactionId.trim() || null,
         }),
       });
@@ -81,7 +79,7 @@ export function EditRegistrationDialog({ registration: r, onUpdated }: { registr
             <Select value={paymentStatus} onValueChange={setPaymentStatus}>
               <SelectTrigger aria-label="Payment status"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {PAYMENT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                {PAYMENT_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -94,17 +92,6 @@ export function EditRegistrationDialog({ registration: r, onUpdated }: { registr
             value={amountPaid}
             onChange={(e) => setAmountPaid(e.target.value)}
           />
-
-          <div className="grid gap-1.5">
-            <Label>Payment Method</Label>
-            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-              <SelectTrigger aria-label="Payment method"><SelectValue placeholder="Select method" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">— None —</SelectItem>
-                {PAYMENT_METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
 
           <Input
             aria-label="Transaction ID"

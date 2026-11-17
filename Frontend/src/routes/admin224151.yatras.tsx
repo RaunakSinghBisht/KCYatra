@@ -268,8 +268,8 @@ function AdminYatras() {
   const save = () => {
     if (!draft.title.trim()) { toast.error("Yatra title is required"); return; }
     const pct = Number(draft.cash_online_percent);
-    if (!Number.isInteger(pct) || pct < 1 || pct > 99) {
-      toast.error("Cash's Online Payment Percentage must be a whole number between 1 and 99");
+    if (draft.cash_online_percent.trim() === "" || !Number.isInteger(pct) || pct < 0 || pct > 100) {
+      toast.error("Cash's Online Payment Percentage must be a whole number between 0 and 100");
       return;
     }
     if (!draft.start_date) { toast.error("Start date is required"); return; }
@@ -353,15 +353,15 @@ function AdminYatras() {
                   <Input
                     type="number"
                     inputMode="numeric"
-                    min={1}
-                    max={99}
+                    min={0}
+                    max={100}
                     step={1}
                     value={draft.cash_online_percent}
                     onChange={(e) => setDraft({ ...draft, cash_online_percent: e.target.value })}
                     placeholder="20"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    For "Pay by Cash" bookings: this % is paid online now, the rest in cash (1–99, e.g. 20, 30, 50).
+                    For "Pay by Cash" bookings: this % is paid online now, the rest in cash (e.g. 20, 30, 50). 0 = everything in cash, no advance. 100 = Pay by Cash is disabled.
                   </p>
                 </Field>
 

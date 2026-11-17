@@ -18,9 +18,9 @@ def normalize_status(v: str) -> str:
 
 
 def check_cash_percent(v: int | None) -> int | None:
-    """The share of a "Pay by Cash" booking paid online up front (whole percent, 1-99)."""
-    if v is not None and not (1 <= v <= 99):
-        raise ValueError("cash_online_percent must be between 1 and 99.")
+    """The share of a "Pay by Cash" booking paid online up front (whole percent, 0-100)."""
+    if v is not None and not (0 <= v <= 100):
+        raise ValueError("cash_online_percent must be between 0 and 100.")
     return v
 
 
