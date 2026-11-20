@@ -246,12 +246,14 @@ function OptionRow({
   const kindName = tone === "hotel" ? "Hotel" : "Travel";
   return (
     <div className={cn("relative mt-3", disabled && "opacity-60")}>
-      <p className="text-sm font-semibold">{label}</p>
-      {!disabled && (
-        <p className="text-xs font-medium text-foreground/90">
-          Select Any {tone === "hotel" ? "Hotel" : "Travel"} Package
-        </p>
-      )}
+      <p className="text-sm font-semibold">
+        {label}
+        {!disabled && (
+          <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+            (Select Any {tone === "hotel" ? "Hotel" : "Travel"} Package)
+          </span>
+        )}
+      </p>
       <div className="relative">
         <div
           className="-mx-4 mt-1.5 flex snap-x gap-3 overflow-x-auto px-4 pb-px [&::-webkit-scrollbar]:h-px [&::-webkit-scrollbar-thumb]:rounded-none [&::-webkit-scrollbar-thumb]:bg-primary [&::-webkit-scrollbar-track]:bg-transparent"
@@ -705,9 +707,9 @@ function PaymentDialog({
             const labelRight = r.isPaid
               ? "Paid ✓"
               : r.isPartial
-                ? "Registered"
+                ? "Partial Payment"
                 : r.isCashOnly
-                  ? "Registered"
+                  ? "Partial Payment"
                   : r.isSelectable
                 ? r.ageTag === "Free"
                   ? "Free"
@@ -798,8 +800,8 @@ function PaymentDialog({
           <Dialog open={cashNoticeOpen} onOpenChange={setCashNoticeOpen}>
             <DialogContent className="gap-0 rounded-3xl p-0 sm:max-w-md">
               <DialogHeader className="border-b border-border px-6 py-4 text-left">
-                <DialogTitle className="pr-6 text-lg font-extrabold">Register</DialogTitle>
-                <DialogDescription className="sr-only">Confirm your registration for the selected passengers</DialogDescription>
+                <DialogTitle className="pr-6 text-lg font-extrabold">Partial Payment</DialogTitle>
+                <DialogDescription className="sr-only">Confirm a partial payment for the selected passengers</DialogDescription>
               </DialogHeader>
               <div className="px-6 py-5">
                 <p className="text-base font-bold leading-snug">
@@ -825,7 +827,7 @@ function PaymentDialog({
                   className="mt-5 w-full rounded-full bg-gradient-primary py-3 text-base font-extrabold text-primary-foreground shadow-glow"
                 >
                   {cashPercent === 0
-                    ? "Confirm Registration"
+                    ? "Confirm Partial Payment"
                     : `Pay ₹${advanceNow.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`}
                 </button>
               </div>
@@ -869,7 +871,7 @@ function PaymentDialog({
                   {saving ? "Saving…" : "Opening Payment…"}
                 </>
               ) : (
-                "Register"
+                "Partial Payment"
               )}
             </button>
             <button
@@ -1350,9 +1352,9 @@ function BookYatra() {
           const statusText = isPaid
             ? "Paid ✓"
             : isPartial
-              ? "Registered"
+              ? "Partial Payment"
               : cashOnlyIds.has(p.id)
-                ? "Registered"
+                ? "Partial Payment"
                 : isRegistered || (s.hotel && s.travel)
                   ? "Packages selected"
                   : "Not Selected any Pack";
