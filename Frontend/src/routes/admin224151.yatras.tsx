@@ -61,6 +61,8 @@ type YatraRow = {
   whatsapp_group_link: string | null;
   allow_whatsapp_before_payment: boolean;
   cash_online_percent: number;
+  hotel_packages_desc: string | null;
+  travel_packages_desc: string | null;
   status: YatraStatus;
   created_at?: string;
 };
@@ -73,6 +75,8 @@ type DraftForm = {
   whatsapp_group_link: string;
   allow_whatsapp_before_payment: boolean;
   cash_online_percent: string;
+  hotel_packages_desc: string;
+  travel_packages_desc: string;
   status: YatraStatus;
   hotel_packages: HotelPkg[];
   travel_packages: TravelPkg[];
@@ -89,6 +93,8 @@ const emptyDraft: DraftForm = {
   whatsapp_group_link: "",
   allow_whatsapp_before_payment: false,
   cash_online_percent: "20",
+  hotel_packages_desc: "",
+  travel_packages_desc: "",
   status: "draft",
   hotel_packages: [],
   travel_packages: [],
@@ -111,6 +117,8 @@ async function createYatraApi(draft: DraftForm, imageFile: File | null): Promise
   if (draft.whatsapp_group_link) form.append("whatsapp_group_link", draft.whatsapp_group_link);
   form.append("allow_whatsapp_before_payment", String(draft.allow_whatsapp_before_payment));
   form.append("cash_online_percent", draft.cash_online_percent);
+  form.append("hotel_packages_desc", draft.hotel_packages_desc);
+  form.append("travel_packages_desc", draft.travel_packages_desc);
   if (draft.hotel_packages.length) form.append("hotel_packages", JSON.stringify(draft.hotel_packages));
   if (draft.travel_packages.length) form.append("travel_packages", JSON.stringify(draft.travel_packages));
   if (imageFile) form.append("image", imageFile);
@@ -133,6 +141,8 @@ async function updateYatraApi(id: number, draft: DraftForm, imageFile: File | nu
   form.append("whatsapp_group_link", draft.whatsapp_group_link);
   form.append("allow_whatsapp_before_payment", String(draft.allow_whatsapp_before_payment));
   form.append("cash_online_percent", draft.cash_online_percent);
+  form.append("hotel_packages_desc", draft.hotel_packages_desc);
+  form.append("travel_packages_desc", draft.travel_packages_desc);
   form.append("hotel_packages", JSON.stringify(draft.hotel_packages));
   form.append("travel_packages", JSON.stringify(draft.travel_packages));
   if (imageFile) form.append("image", imageFile);
@@ -229,6 +239,8 @@ function AdminYatras() {
       whatsapp_group_link: y.whatsapp_group_link ?? "",
       allow_whatsapp_before_payment: y.allow_whatsapp_before_payment ?? false,
       cash_online_percent: String(y.cash_online_percent ?? 20),
+      hotel_packages_desc: y.hotel_packages_desc ?? "",
+      travel_packages_desc: y.travel_packages_desc ?? "",
       status: y.status,
       hotel_packages: y.hotel_packages ?? [],
       travel_packages: y.travel_packages ?? [],
@@ -444,11 +456,19 @@ function AdminYatras() {
                 title="Hotel packages"
                 rows={draft.hotel_packages}
                 onChange={(pkgs) => setDraft({ ...draft, hotel_packages: pkgs })}
+                descLabel="Hotel Package Description"
+                descPlaceholder="Elaborate about the Hotel Packages"
+                desc={draft.hotel_packages_desc}
+                onDescChange={(v) => setDraft({ ...draft, hotel_packages_desc: v })}
               />
               <PackageEditor
                 title="Travel packages"
                 rows={draft.travel_packages}
                 onChange={(pkgs) => setDraft({ ...draft, travel_packages: pkgs })}
+                descLabel="Travel Package Description"
+                descPlaceholder="Elaborate about the Traveling Packages"
+                desc={draft.travel_packages_desc}
+                onDescChange={(v) => setDraft({ ...draft, travel_packages_desc: v })}
               />
 
               {/* WhatsApp join toggle */}
@@ -611,10 +631,18 @@ function PackageEditor({
   title,
   rows,
   onChange,
+  descLabel,
+  descPlaceholder,
+  desc,
+  onDescChange,
 }: {
   title: string;
   rows: HotelPkg[] | TravelPkg[];
   onChange: (pkgs: HotelPkg[]) => void;
+  descLabel: string;
+  descPlaceholder: string;
+  desc: string;
+  onDescChange: (v: string) => void;
 }) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
@@ -682,6 +710,16 @@ function PackageEditor({
           <Plus className="size-4" /> Add package
         </Button>
       </div>
+      <Field label={descLabel} className="mt-3">
+        <Textarea
+          rows={4}
+          maxLength={1000}
+          value={desc}
+          onChange={(e) => onDescChange(e.target.value)}
+          placeholder={descPlaceholder}
+        />
+        <p className="text-right text-xs text-muted-foreground">{desc.length}/1000</p>
+      </Field>
     </div>
   );
 }

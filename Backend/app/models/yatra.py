@@ -20,6 +20,8 @@ class Yatra(Base):
     hotel_packages: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     travel_packages: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    hotel_packages_desc: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    travel_packages_desc: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     message_for_passengers: Mapped[str | None] = mapped_column(Text, nullable=True)
     whatsapp_group_link: Mapped[str | None] = mapped_column(String(500), nullable=True)
     allow_whatsapp_before_payment: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

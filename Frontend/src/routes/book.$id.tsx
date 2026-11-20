@@ -42,6 +42,8 @@ type Yatra = {
   status: string;
   whatsapp_group_link: string | null;
   cash_online_percent?: number;
+  hotel_packages_desc?: string | null;
+  travel_packages_desc?: string | null;
 };
 
 type Passenger = {
@@ -229,6 +231,7 @@ function OptionRow({
   tone,
   disabled,
   onSelect,
+  desc,
 }: {
   label: string;
   options: { key: string; price: number }[];
@@ -236,10 +239,19 @@ function OptionRow({
   tone: "hotel" | "travel";
   disabled?: boolean;
   onSelect: (v: string) => void;
+  /** Admin-written description of the packages; shown in a popup behind a "Know about ..." link. */
+  desc?: string | null | undefined;
 }) {
+  const [descOpen, setDescOpen] = useState(false);
+  const kindName = tone === "hotel" ? "Hotel" : "Travel";
   return (
     <div className={cn("relative mt-3", disabled && "opacity-60")}>
       <p className="text-sm font-semibold">{label}</p>
+      {!disabled && (
+        <p className="text-xs font-medium text-foreground/90">
+          Select Any {tone === "hotel" ? "Hotel" : "Travel"} Package
+        </p>
+      )}
       <div className="relative">
         <div
           className="-mx-4 mt-1.5 flex snap-x gap-3 overflow-x-auto px-4 pb-px [&::-webkit-scrollbar]:h-px [&::-webkit-scrollbar-thumb]:rounded-none [&::-webkit-scrollbar-thumb]:bg-primary [&::-webkit-scrollbar-track]:bg-transparent"
@@ -272,6 +284,30 @@ function OptionRow({
           <div className="w-6 shrink-0" aria-hidden="true" />
         </div>
       </div>
+      {desc?.trim() && (
+        <>
+          <div className="mt-1.5 text-right">
+            <button
+              type="button"
+              onClick={() => setDescOpen(true)}
+              className="text-sm font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
+            >
+              Know about {kindName} Packages
+            </button>
+          </div>
+          <Dialog open={descOpen} onOpenChange={setDescOpen}>
+            <DialogContent className="flex max-h-[85dvh] flex-col gap-0 overflow-hidden rounded-3xl p-0 sm:max-w-lg">
+              <DialogHeader className="shrink-0 border-b border-border px-6 py-4 text-left">
+                <DialogTitle className="text-lg font-extrabold">{kindName} Packages</DialogTitle>
+                <DialogDescription className="sr-only">Details about the {kindName.toLowerCase()} packages</DialogDescription>
+              </DialogHeader>
+              <div className="min-h-0 flex-1 overflow-y-auto whitespace-pre-line px-6 py-5 text-sm leading-relaxed text-foreground">
+                {desc}
+              </div>
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
     </div>
   );
 }
@@ -407,6 +443,12 @@ function PaymentDialog({
       }),
     [passengers, sel, paidIds, partialIds, cashOnlyIds, hotelOptions, travelOptions, yatraStartYear],
   );
+
+  // Every time the box opens, tick all passengers who can be paid for (both packages selected).
+  useEffect(() => {
+    if (open) setCheckedIds(new Set(rows.filter((r) => r.isSelectable).map((r) => r.id)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const grandTotal = rows
     .filter((r) => r.isSelectable && checkedIds.has(r.id))
@@ -663,9 +705,9 @@ function PaymentDialog({
             const labelRight = r.isPaid
               ? "Paid ✓"
               : r.isPartial
-                ? `${cashPercent}% Paid · Rest in Cash`
+                ? "Registered"
                 : r.isCashOnly
-                  ? "Pay by Cash"
+                  ? "Registered"
                   : r.isSelectable
                 ? r.ageTag === "Free"
                   ? "Free"
@@ -727,7 +769,7 @@ function PaymentDialog({
             <button
               type="button"
               onClick={() => setTermsOpen(true)}
-              className="cursor-pointer font-semibold text-blue-600 underline underline-offset-2 hover:text-blue-700"
+              className="cursor-pointer font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
             >
               Terms &amp; Conditions
             </button>
@@ -756,8 +798,8 @@ function PaymentDialog({
           <Dialog open={cashNoticeOpen} onOpenChange={setCashNoticeOpen}>
             <DialogContent className="gap-0 rounded-3xl p-0 sm:max-w-md">
               <DialogHeader className="border-b border-border px-6 py-4 text-left">
-                <DialogTitle className="pr-6 text-lg font-extrabold">Pay by Cash</DialogTitle>
-                <DialogDescription className="sr-only">Part of the payment is taken online for cash bookings</DialogDescription>
+                <DialogTitle className="pr-6 text-lg font-extrabold">Register</DialogTitle>
+                <DialogDescription className="sr-only">Confirm your registration for the selected passengers</DialogDescription>
               </DialogHeader>
               <div className="px-6 py-5">
                 <p className="text-base font-bold leading-snug">
@@ -783,7 +825,7 @@ function PaymentDialog({
                   className="mt-5 w-full rounded-full bg-gradient-primary py-3 text-base font-extrabold text-primary-foreground shadow-glow"
                 >
                   {cashPercent === 0
-                    ? "Confirm Cash Booking"
+                    ? "Confirm Registration"
                     : `Pay ₹${advanceNow.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`}
                 </button>
               </div>
@@ -795,7 +837,7 @@ function PaymentDialog({
             <DialogContent className="gap-0 rounded-3xl p-0 sm:max-w-sm">
               <DialogHeader className="px-6 pb-2 pt-6 text-left">
                 <DialogTitle className="pr-6 text-lg font-extrabold">Cash Payment is Disabled for this Yatra !</DialogTitle>
-                <DialogDescription className="sr-only">Pay by Cash is not available for this yatra</DialogDescription>
+                <DialogDescription className="sr-only">Registering with cash is not available for this yatra</DialogDescription>
               </DialogHeader>
               <div className="px-6 pb-6 pt-2">
                 <p className="text-sm text-muted-foreground">Please use Pay Online to complete your booking.</p>
@@ -827,7 +869,7 @@ function PaymentDialog({
                   {saving ? "Saving…" : "Opening Payment…"}
                 </>
               ) : (
-                "Pay by Cash"
+                "Register"
               )}
             </button>
             <button
@@ -837,7 +879,7 @@ function PaymentDialog({
               className="flex flex-1 items-center justify-center gap-2 rounded-full bg-gradient-primary py-3.5 text-center text-base sm:text-lg font-extrabold tracking-tight text-primary-foreground shadow-glow disabled:opacity-60"
             >
               {isBusy && activeMethod === "online" && <Loader2 className="size-4 animate-spin" />}
-              {activeMethod === "online" && saving ? "Saving…" : activeMethod === "online" && paying ? "Opening Payment…" : "Pay Online"}
+              {activeMethod === "online" && saving ? "Saving…" : activeMethod === "online" && paying ? "Opening Payment…" : "Full Payment"}
             </button>
           </div>
         </div>
@@ -1308,12 +1350,10 @@ function BookYatra() {
           const statusText = isPaid
             ? "Paid ✓"
             : isPartial
-              ? "Partial Paid"
+              ? "Registered"
               : cashOnlyIds.has(p.id)
-                ? "Pay by Cash"
-                : isRegistered
-                ? "Saved"
-                : s.hotel && s.travel
+                ? "Registered"
+                : isRegistered || (s.hotel && s.travel)
                   ? "Packages selected"
                   : "Not Selected any Pack";
 
@@ -1353,6 +1393,7 @@ function BookYatra() {
               {hotelOptions.length > 0 && (
                 <OptionRow
                   label="Hotel Package"
+                  desc={yatra.hotel_packages_desc}
                   options={hotelOptions}
                   selected={s.hotel}
                   tone="hotel"
@@ -1364,6 +1405,7 @@ function BookYatra() {
               {travelOptions.length > 0 && (
                 <OptionRow
                   label="Travel Package"
+                  desc={yatra.travel_packages_desc}
                   options={travelOptions}
                   selected={s.travel}
                   tone="travel"

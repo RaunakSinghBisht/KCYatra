@@ -17,8 +17,8 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { useAdminAuth } from "@/features/admin/lib/admin-auth";
 
 const nav = [
-  { to: "/admin224151/users", label: "Users", icon: Users },
   { to: "/admin224151/bookings", label: "Bookings & Payments", icon: Receipt },
+  { to: "/admin224151/users", label: "Users", icon: Users },
   { to: "/admin224151/yatras", label: "Yatra Packages", icon: MountainSnow },
   { to: "/admin224151/notices", label: "Notices", icon: Bell },
   { to: "/admin224151/carousel", label: "Carousel Manager", icon: Images },

@@ -24,6 +24,19 @@ def check_cash_percent(v: int | None) -> int | None:
     return v
 
 
+PACKAGE_DESC_MAX = 1000
+
+
+def clean_package_desc(v: str | None) -> str | None:
+    """Package descriptions keep their line breaks (shown as-is on the site); only normalise and trim the ends."""
+    if v is None:
+        return None
+    v = v.replace("\r\n", "\n").replace("\r", "\n").strip()
+    if len(v) > PACKAGE_DESC_MAX:
+        raise ValueError(f"package description must be at most {PACKAGE_DESC_MAX} characters.")
+    return v
+
+
 class HotelPackage(BaseModel):
     title: str
     price: float
@@ -44,6 +57,8 @@ class YatraCreate(BaseModel):
     travel_packages: list[TravelPackage] | None = None
     description: str | None = None
     whatsapp_group_link: str | None = None
+    hotel_packages_desc: str | None = None
+    travel_packages_desc: str | None = None
     allow_whatsapp_before_payment: bool = False
     cash_online_percent: int = 20
     status: str = "upcoming"
@@ -67,6 +82,11 @@ class YatraCreate(BaseModel):
     @classmethod
     def validate_status(cls, v: str) -> str:
         return normalize_status(v)
+
+    @field_validator("hotel_packages_desc", "travel_packages_desc")
+    @classmethod
+    def validate_package_desc(cls, v: str | None) -> str | None:
+        return clean_package_desc(v)
 
     @field_validator("cash_online_percent")
     @classmethod
@@ -92,6 +112,8 @@ class YatraUpdate(BaseModel):
     travel_packages: Optional[list[TravelPackage]] = None
     description: Optional[str] = None
     whatsapp_group_link: Optional[str] = None
+    hotel_packages_desc: Optional[str] = None
+    travel_packages_desc: Optional[str] = None
     allow_whatsapp_before_payment: Optional[bool] = None
     cash_online_percent: Optional[int] = None
     status: Optional[str] = None
@@ -111,6 +133,11 @@ class YatraUpdate(BaseModel):
         if v is not None and len(v) > 500:
             raise ValueError("description must be at most 500 characters.")
         return v
+
+    @field_validator("hotel_packages_desc", "travel_packages_desc")
+    @classmethod
+    def validate_package_desc(cls, v: str | None) -> str | None:
+        return clean_package_desc(v)
 
     @field_validator("cash_online_percent")
     @classmethod
@@ -137,6 +164,8 @@ class YatraResponse(BaseModel):
     travel_packages: list[TravelPackage] | None
     description: str | None
     whatsapp_group_link: str | None
+    hotel_packages_desc: str | None
+    travel_packages_desc: str | None
     allow_whatsapp_before_payment: bool
     cash_online_percent: int
     status: str

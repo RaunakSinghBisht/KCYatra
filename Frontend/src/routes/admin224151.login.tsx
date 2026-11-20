@@ -28,7 +28,7 @@ function AdminLogin() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (admin) navigate({ to: "/admin224151/users" });
+    if (admin) navigate({ to: "/admin224151/bookings" });
   }, [admin, navigate]);
 
   const submit = async () => {
@@ -38,7 +38,7 @@ function AdminLogin() {
     setSubmitting(false);
     if (result.ok) {
       toast.success("Welcome back, admin");
-      navigate({ to: "/admin224151/users" });
+      navigate({ to: "/admin224151/bookings" });
     } else {
       toast.error(result.error ?? "Invalid admin credentials");
     }
