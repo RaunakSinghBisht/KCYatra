@@ -50,8 +50,9 @@ function statusLabel(status: string): string {
   return { upcoming: "Upcoming", open: "Open", closed: "Closed" }[status] ?? status;
 }
 
-function statusVariant(status: string): "secondary" | "destructive" | "outline" {
-  return status === "closed" ? "destructive" : "secondary";
+// Open = saffron (site theme); Upcoming and Closed = pale cream with brown text.
+function statusVariant(status: string): "default" | "secondary" {
+  return status === "open" ? "default" : "secondary";
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────

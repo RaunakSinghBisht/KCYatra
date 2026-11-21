@@ -239,7 +239,7 @@ function OptionRow({
   tone: "hotel" | "travel";
   disabled?: boolean;
   onSelect: (v: string) => void;
-  /** Admin-written description of the packages; shown in a popup behind a "Know about ..." link. */
+  /** Admin-written description of the packages; shown in a popup behind a "Know More" link. */
   desc?: string | null | undefined;
 }) {
   const [descOpen, setDescOpen] = useState(false);
@@ -294,7 +294,7 @@ function OptionRow({
               onClick={() => setDescOpen(true)}
               className="text-sm font-semibold text-primary underline underline-offset-2 hover:text-primary/80"
             >
-              Know about {kindName} Packages
+              Know More
             </button>
           </div>
           <Dialog open={descOpen} onOpenChange={setDescOpen}>
@@ -485,7 +485,7 @@ function PaymentDialog({
           const count = data.paid_registration_ids.length + (data.partial_registration_ids?.length ?? 0);
           toast.success(
             kind === "cash"
-              ? `${cashPercent}% paid online! Please pay the rest in cash to the organizer.`
+              ? "Registration Amount Paid! Please pay the rest to the organizer."
               : `Payment successful! ${count} registration(s) confirmed.`,
           );
           onPaid(data.paid_registration_ids);
@@ -527,7 +527,7 @@ function PaymentDialog({
         currency: order.currency,
         order_id: order.order_id,
         name: "Krishna Conscious Yatra",
-        description: kind === "cash" ? `Yatra Registration — ${cashPercent}% advance (rest in cash)` : "Yatra Registration Payment",
+        description: kind === "cash" ? `Yatra Registration — ${cashPercent}% registration amount` : "Yatra Registration Payment",
         theme: { color: "#f97316" },
         prefill: { contact: userPhone },
         retry: { enabled: true, max_count: 3 },
@@ -630,7 +630,7 @@ function PaymentDialog({
         const cashIds: number[] = data.cash_registration_ids ?? [];
         toast.success(
           cashIds.length > 0
-            ? "Booked! Please pay the full amount in cash to the organizer."
+            ? "Booked! Please pay the full amount to the organizer."
             : `Registration successful! ${data.paid_registration_ids.length} registration(s) confirmed.`,
         );
         onPaid(data.paid_registration_ids);
@@ -806,17 +806,17 @@ function PaymentDialog({
               <div className="px-6 py-5">
                 <p className="text-base font-bold leading-snug">
                   {cashPercent === 0
-                    ? "You have to Pay All the Amount to the Concerned Authorities by Cash"
-                    : `You have to Pay ${cashPercent}% of the Payment Online, Rest Would be Taken as Cash`}
+                    ? "You have to Pay All the Amount to the Concerned Authority"
+                    : `You have to Pay ${cashPercent}% for Registration, Rest Would be Taken by Concerned Authority`}
                 </p>
                 {cashPercent > 0 && (
                   <dl className="mt-4 space-y-2 rounded-2xl bg-accent/50 px-4 py-3 text-sm">
                     <div className="flex items-center justify-between gap-3">
-                      <dt className="font-semibold text-foreground">Pay online now ({cashPercent}%)</dt>
+                      <dt className="font-semibold text-foreground">Registration Amount ({cashPercent}%)</dt>
                       <dd className="font-extrabold">{formatPrice(advanceNow)}</dd>
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                      <dt className="font-semibold text-foreground">Rest, paid in cash</dt>
+                      <dt className="font-semibold text-foreground">Rest, paid to the Concerned Authority</dt>
                       <dd className="font-extrabold">{formatPrice(restInCash)}</dd>
                     </div>
                   </dl>
@@ -838,11 +838,11 @@ function PaymentDialog({
           <Dialog open={cashDisabledOpen} onOpenChange={setCashDisabledOpen}>
             <DialogContent className="gap-0 rounded-3xl p-0 sm:max-w-sm">
               <DialogHeader className="px-6 pb-2 pt-6 text-left">
-                <DialogTitle className="pr-6 text-lg font-extrabold">Cash Payment is Disabled for this Yatra !</DialogTitle>
-                <DialogDescription className="sr-only">Registering with cash is not available for this yatra</DialogDescription>
+                <DialogTitle className="pr-6 text-lg font-extrabold">Partial Payment is Disabled for this Yatra !</DialogTitle>
+                <DialogDescription className="sr-only">Partial payment is not available for this yatra</DialogDescription>
               </DialogHeader>
               <div className="px-6 pb-6 pt-2">
-                <p className="text-sm text-muted-foreground">Please use Pay Online to complete your booking.</p>
+                <p className="text-sm text-muted-foreground">Please use Full Payment to complete your booking.</p>
                 <button
                   type="button"
                   onClick={() => setCashDisabledOpen(false)}
@@ -928,7 +928,7 @@ function PaymentDialog({
             <p className="mt-3 text-sm text-muted-foreground">
               {thankYouKind === "cash" ? (
                 <>
-                  Organizer will Contact You for Remaining {100 - cashPercent}% Cash Collection.
+                  Organizer will Contact You for Remaining Amount Collection.
                   <br />
                   Hare Krishna !
                 </>

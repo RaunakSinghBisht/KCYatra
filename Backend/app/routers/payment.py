@@ -202,17 +202,17 @@ async def _build_items(
         if reg.payment_status == STATUS_PARTIAL:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="The advance has already been paid online for this passenger. The remaining amount is to be paid in cash.",
+                detail="The registration amount has already been paid for this passenger. The remaining amount is to be paid to the organizer.",
             )
         if partial and yatra.cash_online_percent >= 100:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cash Payment is Disabled for this Yatra !",
+                detail="Partial Payment is Disabled for this Yatra !",
             )
         if reg.payment_status == STATUS_NOT_PAID:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="This passenger is booked for cash payment and cannot be paid online.",
+                detail="This passenger is already registered and cannot pay online. Please pay the amount to the organizer.",
             )
         if yatra.status != "open":
             raise HTTPException(
