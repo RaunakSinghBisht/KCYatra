@@ -112,28 +112,23 @@ const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
 // The status filter combines payment status and method ("cash" is a method, not a status).
 const STATUS_FILTERS: { value: string; label: string; match: (r: Registration) => boolean }[] = [
-  { value: "interested", label: "Interested", match: (r) => r.paymentStatus === "interested" },
   {
-    value: "online_paid",
-    label: "Online • Paid",
+    value: "fully_paid",
+    label: "Fully Paid",
     match: (r) => r.paymentStatus === "paid" && r.paymentMethod === "online",
   },
   {
-    value: "cash_partial",
-    label: "Cash • Partial Paid",
+    value: "partial_paid",
+    label: "Partial Paid",
     match: (r) => r.paymentStatus === "partial_paid",
   },
   {
-    value: "cash_paid",
-    label: "Cash • Paid",
-    match: (r) => r.paymentStatus === "paid" && r.paymentMethod === "cash",
+    value: "both",
+    label: "Both (Fully Paid + Partial Paid)",
+    match: (r) =>
+      (r.paymentStatus === "paid" && r.paymentMethod === "online") || r.paymentStatus === "partial_paid",
   },
-  // Yatras with a 0% online advance book straight into "not_paid" (everything is collected in cash).
-  {
-    value: "cash_not_paid",
-    label: "Cash • Not Paid",
-    match: (r) => r.paymentStatus === "not_paid",
-  },
+  { value: "interested", label: "Interested", match: (r) => r.paymentStatus === "interested" },
 ];
 
 type YatraOption = { id: number; title: string };
@@ -203,7 +198,9 @@ function AdminBookings() {
   );
 
   const collected = rows.reduce((s, r) => s + r.amountPaid, 0);
-  const paidCount = rows.filter((r) => r.paymentStatus === "paid").length;
+  const fullyPaidCount = rows.filter((r) => r.paymentStatus === "paid" && r.paymentMethod === "online").length;
+  const partialPaidCount = rows.filter((r) => r.paymentStatus === "partial_paid").length;
+  const interestedCount = rows.filter((r) => r.paymentStatus === "interested").length;
 
   const confirmDelete = async () => {
     if (!deleting) return;
@@ -240,7 +237,18 @@ function AdminBookings() {
       <section className="grid gap-3 sm:grid-cols-3">
         <StatCard label="Records shown" value={String(rows.length)} />
         <StatCard label="Collected" value={inr(collected)} />
-        <StatCard label="Paid" value={String(paidCount)} />
+        <div className="grid grid-cols-3 gap-2 rounded-2xl border border-border bg-card p-4 shadow-soft">
+          {[
+            { label: "Fully Paid", value: fullyPaidCount },
+            { label: "Partial Paid", value: partialPaidCount },
+            { label: "Interested", value: interestedCount },
+          ].map((s) => (
+            <div key={s.label} className="min-w-0">
+              <p className="truncate text-xs font-semibold uppercase tracking-wide text-muted-foreground">{s.label}</p>
+              <p className="mt-1 text-2xl font-extrabold">{s.value}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="grid gap-2 rounded-2xl border border-border bg-card p-3 shadow-soft sm:grid-cols-3">
