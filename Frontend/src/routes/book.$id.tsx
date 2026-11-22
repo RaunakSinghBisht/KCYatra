@@ -256,8 +256,8 @@ function OptionRow({
       </p>
       <div className="relative">
         <div
-          className="-mx-4 mt-1.5 flex snap-x gap-3 overflow-x-auto px-4 pb-px [&::-webkit-scrollbar]:h-px [&::-webkit-scrollbar-thumb]:rounded-none [&::-webkit-scrollbar-thumb]:bg-primary [&::-webkit-scrollbar-track]:bg-transparent"
-          style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(var(--primary)) transparent" }}
+          className="-mx-4 mt-1.5 flex snap-x gap-3 overflow-x-auto px-4 [&::-webkit-scrollbar]:hidden"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
           {options.map((o) => (
             <button
